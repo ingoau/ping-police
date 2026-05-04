@@ -1,3 +1,8 @@
+export interface Event {
+  type: string;
+  [key: string]: any;
+}
+
 export interface TypingEvent {
   type: "user_typing";
   channel: string;
