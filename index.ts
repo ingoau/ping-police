@@ -3,7 +3,7 @@ websocketUrl.searchParams.set("token", process.env.SLACK_SELFBOT_XOXC || "");
 
 const socket = new WebSocket(websocketUrl.toString(), {
   headers: {
-    d: process.env.SLACK_SELFBOT_XOXD || "",
+    Cookie: `d=${process.env.SLACK_SELFBOT_XOXD || ""}`,
   },
 });
 
