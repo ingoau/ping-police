@@ -18,6 +18,12 @@ socket.addEventListener("message", (event) => {
   const eventData = JSON.parse(event.data) as Event;
   if (eventData.type === "user_typing") {
     const typingEventData = eventData as TypingEvent;
+    web.chat.postEphemeral({
+      channel: typingEventData.channel,
+      text: "HEY STOP",
+      user: typingEventData.user,
+      thread_ts: typingEventData.thread_ts,
+    });
     console.log(typingEventData);
   }
 });
