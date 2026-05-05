@@ -1,4 +1,9 @@
 import type { Event, TypingEvent } from "./types";
+import { WebClient } from "@slack/web-api";
+
+const token = process.env.SLACK_TOKEN;
+
+const web = new WebClient(token);
 
 const websocketUrl = new URL("wss://wss-primary.slack.com/");
 websocketUrl.searchParams.set("token", process.env.SLACK_SELFBOT_XOXC || "");
