@@ -1,9 +1,12 @@
 import type { Event, TypingEvent } from "./types";
 import { WebClient } from "@slack/web-api";
+import { SocketModeClient } from "@slack/socket-mode";
 
 const token = process.env.SLACK_TOKEN;
+const appToken = process.env.SLACK_APP_TOKEN!;
 
 const web = new WebClient(token);
+const socketModeClient = new SocketModeClient({ appToken });
 
 const websocketUrl = new URL("wss://wss-primary.slack.com/");
 websocketUrl.searchParams.set("token", process.env.SLACK_SELFBOT_XOXC || "");
@@ -32,3 +35,5 @@ socket.addEventListener("message", (event) => {
     socket.send(JSON.stringify({ type: "pong", reply_to: eventData.id }));
   }
 });
+
+await socketModeClient.start();
