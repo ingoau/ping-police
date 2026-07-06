@@ -26,4 +26,7 @@ socket.addEventListener("message", (event) => {
     });
     console.log(typingEventData);
   }
+  if (eventData.type === "ping") {
+    socket.send(JSON.stringify({ type: "pong", reply_to: eventData.id }));
+  }
 });
