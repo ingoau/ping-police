@@ -6,7 +6,7 @@ type NoPerms = {
 type AdminRolesEntityListAssignments = {
   ok: true;
   role_assignments: {
-    role_id: "Rl0A";
+    role_id: string;
     users: string[];
   }[];
 };
