@@ -1,4 +1,4 @@
-import type { Event, TypingEvent } from "./types";
+import type { Event, SlashCommandEvent, TypingEvent } from "./types";
 import { WebClient } from "@slack/web-api";
 import { SocketModeClient } from "@slack/socket-mode";
 
@@ -15,6 +15,11 @@ const socket = new WebSocket(websocketUrl.toString(), {
   headers: {
     Cookie: `d=${process.env.SLACK_SELFBOT_XOXD || ""}`,
   },
+});
+
+socketModeClient.on("slash_commands", async (event: SlashCommandEvent) => {
+  console.log(event);
+  await event.ack();
 });
 
 socket.addEventListener("message", (event) => {
