@@ -1,7 +1,7 @@
 const SLACK_SELFBOT_XOXC = process.env.SLACK_SELFBOT_XOXC!;
 const SLACK_SELFBOT_XOXD = process.env.SLACK_SELFBOT_XOXD!;
 
-export default async function apiRequest(
+export default async function selfbot(
   method: string,
   data: Record<string, any>,
 ) {
