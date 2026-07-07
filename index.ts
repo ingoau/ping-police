@@ -1,4 +1,4 @@
-import type { Event, SlashCommandEvent, TypingEvent } from "./types";
+import type { Event, SlashCommandEvent, TypingEvent } from "./types/events";
 import { WebClient } from "@slack/web-api";
 import { SocketModeClient } from "@slack/socket-mode";
 
