@@ -1,3 +1,5 @@
+import type { ConversationsInfoResponse } from "@slack/web-api";
+
 type NoPerms = {
   ok: false;
   error: "no_perms";
@@ -14,4 +16,6 @@ type AdminRolesEntityListAssignments = {
 export type Api = {
   "admin.roles.entity.listAssignments":
     AdminRolesEntityListAssignments | NoPerms;
+  "conversations.view": ConversationsInfoResponse;
+  "conversations.info": ConversationsInfoResponse;
 };
