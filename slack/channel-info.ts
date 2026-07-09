@@ -1,5 +1,5 @@
-import * as api from "../utils/api";
-import * as selfbot from "../utils/selfbot";
+import * as api from "./api";
+import * as selfbot from "./selfbot";
 
 export default async function getChannelInfo(channelId: string) {
   const channelInfo = await api.bot("conversations.info", {
