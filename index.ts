@@ -5,6 +5,7 @@ import type {
 } from "@/slack/types/events";
 import { WebClient } from "@slack/web-api";
 import { SocketModeClient } from "@slack/socket-mode";
+import { registerSlashCommands } from "./slack/slash-commands";
 
 const token = process.env.SLACK_TOKEN;
 const appToken = process.env.SLACK_APP_TOKEN!;
@@ -21,25 +22,7 @@ const socket = new WebSocket(websocketUrl.toString(), {
   },
 });
 
-socketModeClient.on("slash_commands", async (event: SlashCommandEvent) => {
-  console.log(event);
-  const conversationInfo = await web.conversations.info({
-    channel: event.body.channel_id,
-  });
-  await fetch(event.body.response_url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ text: JSON.stringify(conversationInfo) }),
-  });
-  // web.chat.postEphemeral({
-  //   channel: event.body.channel_id,
-  //   text: "Kevin",
-  //   user: event.body.user_id,
-  // });
-  await event.ack();
-});
+registerSlashCommands(web, socketModeClient);
 
 socket.addEventListener("message", (event) => {
   const eventData = JSON.parse(event.data) as Event;
