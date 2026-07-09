@@ -2,7 +2,7 @@ import * as api from "../utils/api";
 import * as selfbot from "../utils/selfbot";
 
 export default async function getChannelInfo(channelId: string) {
-  const channelInfo = await api.selfbot("conversations.info", {
+  const channelInfo = await api.bot("conversations.info", {
     channel: channelId,
   });
   const selfbotChannelInfo = await api.selfbot("conversations.info", {
