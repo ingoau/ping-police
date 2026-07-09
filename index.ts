@@ -6,6 +6,7 @@ import type {
 import { WebClient } from "@slack/web-api";
 import { SocketModeClient } from "@slack/socket-mode";
 import { registerSlashCommands } from "./slack/handlers/slash-commands";
+import { registerSelfbotEvents } from "./slack/handlers/selfbot-events";
 
 const token = process.env.SLACK_TOKEN;
 const appToken = process.env.SLACK_APP_TOKEN!;
@@ -23,24 +24,6 @@ const socket = new WebSocket(websocketUrl.toString(), {
 });
 
 registerSlashCommands(web, socketModeClient);
-
-socket.addEventListener("message", (event) => {
-  const eventData = JSON.parse(event.data) as Event;
-  // if (eventData.type === "user_typing") {
-  //   const typingEventData = eventData as TypingEvent;
-  //   if (typingEventData.channel === "C0BEVRMGY23") {
-  //     web.chat.postEphemeral({
-  //       channel: typingEventData.channel,
-  //       text: "HEY STOP",
-  //       user: typingEventData.user,
-  //       thread_ts: typingEventData.thread_ts,
-  //     });
-  //   }
-  //   console.log(typingEventData);
-  // }
-  if (eventData.type === "ping") {
-    socket.send(JSON.stringify({ type: "pong", reply_to: eventData.id }));
-  }
-});
+registerSelfbotEvents(socket);
 
 await socketModeClient.start();
