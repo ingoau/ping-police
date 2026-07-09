@@ -1,6 +1,7 @@
 import type { SocketModeClient } from "@slack/socket-mode";
 import type { WebClient } from "@slack/web-api";
 import type { SlashCommandEvent } from "../types/events";
+import getChannelInfo from "../channel-info";
 
 export function registerSlashCommands(
   web: WebClient,
@@ -34,5 +35,11 @@ export function registerSlashCommands(
       });
       return;
     }
+
+    const channelInfo = await getChannelInfo(event.body.channel_id);
+
+    await respond({
+      text: `Channel info: ${JSON.stringify(channelInfo)}`,
+    });
   });
 }
