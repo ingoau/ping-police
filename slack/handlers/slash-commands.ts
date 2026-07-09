@@ -11,6 +11,16 @@ export function registerSlashCommands(
 
     console.log(event);
 
+    const respond = (body: any) => {
+      return fetch(event.body.response_url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+    };
+
     if (!(
       event.body.command === "/ping-police" ||
       event.body.command === "/dev-ping-police"
@@ -19,14 +29,8 @@ export function registerSlashCommands(
     }
 
     if (!event.body.channel_id.startsWith("C")) {
-      await fetch(event.body.response_url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          text: "This command can only be used in a channel.",
-        }),
+      await respond({
+        text: "This command can only be used in a channel.",
       });
       return;
     }
