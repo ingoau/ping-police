@@ -1,8 +1,4 @@
-import type {
-  Event,
-  SlashCommandEvent,
-  TypingEvent,
-} from "@/slack/types/events";
+import type { Event } from "@/slack/types/events";
 
 export function registerSelfbotEvents(socket: WebSocket) {
   socket.addEventListener("message", (event) => {
