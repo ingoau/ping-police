@@ -66,7 +66,7 @@ const setupPrompt: Blocks = [
   },
 ];
 
-const notSetUp: Blocks = [...introduction, divider, ...setupPrompt];
+export const notSetUp: Blocks = [...introduction, divider, ...setupPrompt];
 
 const publicChannelInitialSetup = {
   blocks: [
