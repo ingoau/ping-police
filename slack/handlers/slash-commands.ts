@@ -1,6 +1,6 @@
 import type { SocketModeClient } from "@slack/socket-mode";
 import type { WebClient } from "@slack/web-api";
-import type { SlashCommandEvent } from "./types/events";
+import type { SlashCommandEvent } from "../types/events";
 
 export function registerSlashCommands(
   web: WebClient,

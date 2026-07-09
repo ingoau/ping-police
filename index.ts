@@ -5,7 +5,7 @@ import type {
 } from "@/slack/types/events";
 import { WebClient } from "@slack/web-api";
 import { SocketModeClient } from "@slack/socket-mode";
-import { registerSlashCommands } from "./slack/slash-commands";
+import { registerSlashCommands } from "./slack/handlers/slash-commands";
 
 const token = process.env.SLACK_TOKEN;
 const appToken = process.env.SLACK_APP_TOKEN!;
