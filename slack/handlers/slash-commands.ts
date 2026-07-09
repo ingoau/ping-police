@@ -17,5 +17,18 @@ export function registerSlashCommands(
     )) {
       return;
     }
+
+    if (!event.body.channel_id.startsWith("C")) {
+      await fetch(event.body.response_url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          text: "This command can only be used in a channel.",
+        }),
+      });
+      return;
+    }
   });
 }
