@@ -1,6 +1,12 @@
 {
   "name": "ping-police",
   "module": "index.ts",
+  "scripts": {
+    "start": "bun run index.ts",
+    "db:generate": "bun drizzle-kit generate",
+    "db:migrate": "bun drizzle-kit migrate",
+    "db:push": "bun drizzle-kit push"
+  },
   "devDependencies": {
     "@types/bun": "latest",
     "better-sqlite3": "^12.11.1",
