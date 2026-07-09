@@ -1,64 +1,72 @@
-const notSetUp = {
-  blocks: [
-    {
-      type: "rich_text",
-      elements: [
-        {
-          type: "rich_text_section",
-          elements: [
-            {
-              type: "text",
-              text: "Ping Police is a bot to prevent people from pinging large groups of people. It does this by showing a warning as the user starts typing in a thread that will ping specified groups.",
-            },
-          ],
-        },
-      ],
-    },
-    {
-      type: "divider",
-    },
-    {
-      type: "rich_text",
-      elements: [
-        {
-          type: "rich_text_section",
-          elements: [
-            {
-              type: "text",
-              text: "Would you like to set it up in this channel?",
-            },
-          ],
-        },
-      ],
-    },
-    {
-      type: "actions",
-      elements: [
-        {
-          type: "button",
-          text: {
-            type: "plain_text",
-            text: "Yes",
-            emoji: true,
+import type { Block, KnownBlock } from "@slack/web-api";
+
+type Blocks = (KnownBlock | Block)[];
+
+const divider = {
+  type: "divider",
+} as const;
+
+const introduction: Blocks = [
+  {
+    type: "rich_text",
+    elements: [
+      {
+        type: "rich_text_section",
+        elements: [
+          {
+            type: "text",
+            text: "Ping Police is a bot to prevent people from pinging large groups of people. It does this by showing a warning as the user starts typing in a thread that will ping specified groups.",
           },
-          value: "[channel]",
-          action_id: "setup",
-          style: "primary",
-        },
-        {
-          type: "button",
-          text: {
-            type: "plain_text",
-            text: "No",
-            emoji: true,
+        ],
+      },
+    ],
+  },
+];
+
+const setupPrompt: Blocks = [
+  {
+    type: "rich_text",
+    elements: [
+      {
+        type: "rich_text_section",
+        elements: [
+          {
+            type: "text",
+            text: "Would you like to set up Ping Police in this channel?",
           },
-          value: "[channel]",
-          action_id: "dismiss",
+        ],
+      },
+    ],
+  },
+  {
+    type: "actions",
+    elements: [
+      {
+        type: "button",
+        text: {
+          type: "plain_text",
+          text: "Yes",
+          emoji: true,
         },
-      ],
-    },
-  ],
-};
+        value: "[channel]",
+        action_id: "setup",
+        style: "primary",
+      },
+      {
+        type: "button",
+        text: {
+          type: "plain_text",
+          text: "No",
+          emoji: true,
+        },
+        value: "[channel]",
+        action_id: "dismiss",
+      },
+    ],
+  },
+];
+
+const notSetUp: Blocks = [...introduction, divider, ...setupPrompt];
 
 const publicChannelInitialSetup = {
   blocks: [
