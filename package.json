@@ -3,6 +3,7 @@
   "module": "index.ts",
   "devDependencies": {
     "@types/bun": "latest",
+    "better-sqlite3": "^12.11.1",
     "drizzle-kit": "^0.31.10"
   },
   "peerDependencies": {
