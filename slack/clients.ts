@@ -10,11 +10,11 @@ websocketUrl.searchParams.set("token", process.env.SLACK_SELFBOT_XOXC || "");
 export function createClients() {
   const web = new WebClient(token);
   const socketModeClient = new SocketModeClient({ appToken });
-  const socket = new WebSocket(websocketUrl.toString(), {
+  const selfbotSocket = new WebSocket(websocketUrl.toString(), {
     headers: {
       Cookie: `d=${process.env.SLACK_SELFBOT_XOXD || ""}`,
     },
   });
 
-  return { web, socketModeClient, socket };
+  return { web, socketModeClient, selfbotSocket };
 }

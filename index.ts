@@ -1,10 +1,8 @@
 import { createClients } from "./slack/clients";
-import { registerSlashCommands } from "./slack/handlers/slash-commands";
-import { registerSelfbotEvents } from "./slack/handlers/selfbot-events";
+import { registerEvents } from "./slack/register-events";
 
-const { web, socketModeClient, socket } = createClients();
+const { web, socketModeClient, selfbotSocket} = createClients();
 
-registerSlashCommands(web, socketModeClient);
-registerSelfbotEvents(socket);
+registerEvents(web, socketModeClient, selfbotSocket)
 
 await socketModeClient.start();
