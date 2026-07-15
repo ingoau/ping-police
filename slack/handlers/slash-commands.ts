@@ -20,5 +20,5 @@ async function handlePingPoliceCommand(slash: SlashCommandInstance) {
 
   const channelInfo = await getChannelInfo(slash.channel_id);
 
-  await slash.respond.message({ blocks: notSetUp, ephemeral: true });
+  await slash.respond.message({ blocks: notSetUp(), ephemeral: true });
 }
