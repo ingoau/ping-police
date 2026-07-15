@@ -5,6 +5,4 @@ const { app, selfbotSocket } = createClients();
 
 registerEvents(app, selfbotSocket);
 
-// await socketModeClient.start();
-
 await app.start();
