@@ -1,8 +1,25 @@
 import type { Event } from "@/slack/types/events";
+import * as threads from "@/db/threads";
+
+const SUBTEAM_RE = /<!subteam\^([A-Z0-9]+)(?:\|[^>]*)?>/g;
 
 export function registerSelfbotEvents(socket: WebSocket) {
   socket.addEventListener("message", (event) => {
     const eventData = JSON.parse(event.data) as Event;
+    if (
+      eventData.type === "message" &&
+      (!eventData.subtype /* Regular message */ ||
+        eventData.subtype === "bot_message" ||
+        eventData.subtype === "thread_broadcast")
+    ) {
+      threads.store({
+        ts: eventData.thread_ts || eventData.ts,
+        channelId: eventData.channel,
+        mentionedGroups: [...(eventData.text ?? "").matchAll(SUBTEAM_RE)].map(
+          (m) => m[1]!,
+        ),
+      });
+    }
     // if (eventData.type === "user_typing") {
     //   const typingEventData = eventData as TypingEvent;
     //   if (typingEventData.channel === "C0BEVRMGY23") {

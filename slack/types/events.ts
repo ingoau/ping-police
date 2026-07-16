@@ -1,6 +1,12 @@
-export interface Event {
-  type: string;
-  [key: string]: any;
+// import type { MessageEvent } from "@slack/types";
+
+import type { MessageEvent } from "@slack/web-api";
+
+export type Event = PingEvent | TypingEvent | MessageEvent;
+
+export interface PingEvent {
+  type: "ping";
+  id: string;
 }
 
 export interface TypingEvent {
