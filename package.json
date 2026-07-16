@@ -3,10 +3,10 @@
   "module": "index.ts",
   "scripts": {
     "start": "bun run index.ts",
-    "db:generate": "bun drizzle-kit generate",
-    "db:migrate": "bun drizzle-kit migrate",
-    "db:push": "bun drizzle-kit push",
-    "db:studio": "bun drizzle-kit studio"
+    "db:generate": "bun --env-file=.env.local drizzle-kit generate",
+    "db:migrate": "bun --env-file=.env.local drizzle-kit migrate",
+    "db:push": "bun --env-file=.env.local drizzle-kit push",
+    "db:studio": "bun --env-file=.env.local drizzle-kit studio"
   },
   "devDependencies": {
     "@types/bun": "latest",
