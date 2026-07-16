@@ -6,13 +6,16 @@ import {
   primaryKey,
 } from "drizzle-orm/sqlite-core";
 
-export const groupConfigs = sqliteTable("group_configs", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  enabled: integer("enabled", { mode: "boolean" }).notNull(),
-  channelId: text("channel_id").notNull(),
-  groupId: text("group_id").notNull(),
-  message: text("message"),
-});
+export const groupConfigs = sqliteTable(
+  "group_configs",
+  {
+    enabled: integer("enabled", { mode: "boolean" }).notNull(),
+    channelId: text("channel_id").notNull(),
+    groupId: text("group_id").notNull(),
+    message: text("message"),
+  },
+  (table) => [primaryKey({ columns: [table.channelId, table.groupId] })],
+);
 
 export const threads = sqliteTable(
   "threads",
