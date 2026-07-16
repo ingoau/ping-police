@@ -34,3 +34,13 @@ export async function store(message: {
       set: { mentionedGroups: groups },
     });
 }
+
+export async function getMentionedGroups(ts: string, channelId: string) {
+  const [existing] = await db
+    .select()
+    .from(threads)
+    .where(and(eq(threads.ts, ts), eq(threads.channelId, channelId)))
+    .limit(1);
+
+  return existing?.mentionedGroups ?? [];
+}
