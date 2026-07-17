@@ -5,6 +5,10 @@ import { blocks, context, mrkdwn, section, type App } from "slack.ts";
 
 const SUBTEAM_RE = /<!subteam\^([A-Z0-9]+)(?:\|[^>]*)?>/g;
 
+// channel:thread_ts:user
+const ephemerals = new Map<string, number>();
+const EPHEMRAL_TTL_MS = 60 * 1000;
+
 export function registerSelfbotEvents(socket: WebSocket, app: App<"socket">) {
   socket.addEventListener("message", async (event) => {
     const eventData = JSON.parse(event.data) as Event;
@@ -35,6 +39,13 @@ export function registerSelfbotEvents(socket: WebSocket, app: App<"socket">) {
         (config) => `${config.message} (<!subteam^${config.groupId}>)`,
       );
       if (messages.length === 0) return;
+
+      const key = `${eventData.channel}:${eventData.thread_ts}:${eventData.user}`;
+      const existingTimestamp = ephemerals.get(key);
+      if (existingTimestamp !== undefined && existingTimestamp > Date.now())
+        return;
+      ephemerals.set(key, Date.now() + EPHEMRAL_TTL_MS);
+
       app.channel(eventData.channel).send({
         ephemeral: true,
         blocks: blocks(
