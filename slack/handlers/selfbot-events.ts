@@ -28,18 +28,6 @@ export function registerSelfbotEvents(socket: WebSocket) {
       );
       console.log(mentionedGroups);
     }
-    // if (eventData.type === "user_typing") {
-    //   const typingEventData = eventData as TypingEvent;
-    //   if (typingEventData.channel === "C0BEVRMGY23") {
-    //     web.chat.postEphemeral({
-    //       channel: typingEventData.channel,
-    //       text: "HEY STOP",
-    //       user: typingEventData.user,
-    //       thread_ts: typingEventData.thread_ts,
-    //     });
-    //   }
-    //   console.log(typingEventData);
-    // }
     if (eventData.type === "ping") {
       socket.send(JSON.stringify({ type: "pong", reply_to: eventData.id }));
     }
