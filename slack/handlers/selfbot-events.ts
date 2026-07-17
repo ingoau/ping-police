@@ -18,7 +18,7 @@ export function registerSelfbotEvents(socket: WebSocket, app: App<"socket">) {
         eventData.subtype === "bot_message" ||
         eventData.subtype === "thread_broadcast")
     ) {
-      threads.store({
+      await threads.store({
         ts: eventData.thread_ts || eventData.ts,
         channelId: eventData.channel,
         mentionedGroups: [...(eventData.text ?? "").matchAll(SUBTEAM_RE)].map(
@@ -46,7 +46,7 @@ export function registerSelfbotEvents(socket: WebSocket, app: App<"socket">) {
         return;
       ephemerals.set(key, Date.now() + EPHEMRAL_TTL_MS);
 
-      app.channel(eventData.channel).send({
+      await app.channel(eventData.channel).send({
         ephemeral: true,
         blocks: blocks(
           section(mrkdwn(messages.join("\n"))),
