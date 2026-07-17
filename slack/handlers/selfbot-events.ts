@@ -32,6 +32,7 @@ export function registerSelfbotEvents(socket: WebSocket, app: App<"socket">) {
         await configs.get(eventData.channel, mentionedGroups)
       ).filter((config) => config.enabled);
       const messages = appliedConfigs.map((config) => config.message);
+      if (messages.length === 0) return;
       app.channel(eventData.channel).send({
         ephemeral: true,
         text: messages.join("\n"),
