@@ -4,7 +4,7 @@ import * as threads from "@/db/threads";
 const SUBTEAM_RE = /<!subteam\^([A-Z0-9]+)(?:\|[^>]*)?>/g;
 
 export function registerSelfbotEvents(socket: WebSocket) {
-  socket.addEventListener("message", (event) => {
+  socket.addEventListener("message", async (event) => {
     const eventData = JSON.parse(event.data) as Event;
     if (
       eventData.type === "message" &&
@@ -19,6 +19,14 @@ export function registerSelfbotEvents(socket: WebSocket) {
           (m) => m[1]!,
         ),
       });
+    }
+    if (eventData.type === "user_typing") {
+      if (!eventData.thread_ts) return;
+      const mentionedGroups = await threads.getMentionedGroups(
+        eventData.thread_ts,
+        eventData.channel,
+      );
+      console.log(mentionedGroups);
     }
     // if (eventData.type === "user_typing") {
     //   const typingEventData = eventData as TypingEvent;
