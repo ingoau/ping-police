@@ -17,10 +17,10 @@ const SELF_BOT_USER_ID = "U0B18U7A9DH";
 const CHANNEL_ID = "C0BEVRMGY23";
 const USERGROUP_ID = "S0B1M8N1PLJ";
 
-const setupActions = () =>
+const setupActions = (channelId: string) =>
   actions(
-    button("Yes").value("[channel]").id("setup").style("primary"),
-    button("No").value("[channel]").id("dismiss"),
+    button("Yes").value(channelId).id("setup").style("primary"),
+    button("No").value(channelId).id("dismiss"),
   );
 
 const requiredMembersPrompt = (suffix: string) =>
@@ -34,7 +34,7 @@ const requiredMembersPrompt = (suffix: string) =>
     ),
   );
 
-export const notSetUp = () =>
+export const notSetUp = (channelId: string) =>
   blocks(
     richText(
       R.section(
@@ -45,7 +45,7 @@ export const notSetUp = () =>
     richText(
       R.section("Would you like to set up Ping Police in this channel?"),
     ),
-    setupActions(),
+    setupActions(channelId),
   );
 
 const publicChannelInitialSetup = () => ({
@@ -53,7 +53,7 @@ const publicChannelInitialSetup = () => ({
     requiredMembersPrompt(
       " to the channel.\nWould you like me to do this for you?",
     ),
-    setupActions(),
+    setupActions(""),
   ),
 });
 
@@ -71,9 +71,9 @@ const privateChannelInitialSetup = () => ({
 const manageSettings = () => ({
   blocks: blocks(
     richText(R.section("Manage settings for ", R.channel(CHANNEL_ID))),
-    section(`<!subteam^${USERGROUP_ID}> - Enabled\n Message: \`Message here\``).accessory(
-      button("Edit").value("click_me_123").id("button-action"),
-    ),
+    section(
+      `<!subteam^${USERGROUP_ID}> - Enabled\n Message: \`Message here\``,
+    ).accessory(button("Edit").value("click_me_123").id("button-action")),
   ),
 });
 

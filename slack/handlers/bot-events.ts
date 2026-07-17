@@ -5,7 +5,7 @@ import getChannelInfo from "../channel-info";
 import { notSetUp } from "../blocks";
 import { blocks, type App, type SlashCommandInstance } from "slack.ts";
 
-export function registerSlashCommands(app: App<"socket">) {
+export function registerBotEvents(app: App<"socket">) {
   app.on("/ping-police", handlePingPoliceCommand);
   app.on("/dev-ping-police", handlePingPoliceCommand);
 }
