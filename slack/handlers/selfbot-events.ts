@@ -1,5 +1,6 @@
 import type { Event } from "@/slack/types/events";
 import * as threads from "@/db/threads";
+import * as configs from "@/db/configs";
 
 const SUBTEAM_RE = /<!subteam\^([A-Z0-9]+)(?:\|[^>]*)?>/g;
 
@@ -26,7 +27,10 @@ export function registerSelfbotEvents(socket: WebSocket) {
         eventData.thread_ts,
         eventData.channel,
       );
-      console.log(mentionedGroups);
+      const appliedConfigs = (
+        await configs.get(eventData.channel, mentionedGroups)
+      ).filter((config) => config.enabled);
+      console.log(appliedConfigs);
     }
     if (eventData.type === "ping") {
       socket.send(JSON.stringify({ type: "pong", reply_to: eventData.id }));
