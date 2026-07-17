@@ -4,7 +4,7 @@ import {
   button,
   divider,
   input,
-  markdown,
+  mrkdwn,
   plain,
   plainTextInput,
   R,
@@ -17,13 +17,13 @@ const SELF_BOT_USER_ID = "U0B18U7A9DH";
 const CHANNEL_ID = "C0BEVRMGY23";
 const USERGROUP_ID = "S0B1M8N1PLJ";
 
-const setupActions = (channelId: string) =>
+export const setupActions = (channelId: string) =>
   actions(
     button("Yes").value(channelId).id("setup").style("primary"),
     button("No").value(channelId).id("dismiss"),
   );
 
-const requiredMembersPrompt = (suffix: string) =>
+export const requiredMembersPrompt = (suffix: string) =>
   richText(
     R.section(
       "To continue, you need to add ",
@@ -48,25 +48,28 @@ export const notSetUp = (channelId: string) =>
     setupActions(channelId),
   );
 
-const publicChannelInitialSetup = () => ({
-  blocks: blocks(
+export const publicChannelInitialSetup = (channelId: string) =>
+  blocks(
     requiredMembersPrompt(
       " to the channel.\nWould you like me to do this for you?",
     ),
-    setupActions(""),
-  ),
-});
+    actions(
+      button("Do that for me").value(channelId).id("add_bots").style("primary"),
+      button("I'll do it myself").value(channelId).id("dismiss"),
+    ),
+  );
 
-const privateChannelInitialSetup = () => ({
-  blocks: blocks(
+export const privateChannelInitialSetup = () =>
+  blocks(
     requiredMembersPrompt(
       " to the channel.\nSince this is a private channel, you need to do it yourself.\nYou can run the following commands:",
     ),
-    markdown(
-      "```text\n/invite @[Dev] Ping Police\n```\n```text\n/invite @Ping Police (Selfbot) \n```",
+    section(
+      mrkdwn(
+        "```text\n/invite @[Dev] Ping Police\n```\n```text\n/invite @Ping Police (Selfbot) \n```",
+      ),
     ),
-  ),
-});
+  );
 
 const manageSettings = () => ({
   blocks: blocks(

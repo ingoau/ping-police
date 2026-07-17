@@ -1,9 +1,11 @@
-import type { SocketModeClient } from "@slack/socket-mode";
-import type { WebClient } from "@slack/web-api";
-import type { SlashCommandEvent } from "../types/events";
 import getChannelInfo from "../channel-info";
-import { notSetUp } from "../blocks";
-import { blocks, type App, type SlashCommandInstance } from "slack.ts";
+import {
+  notSetUp,
+  privateChannelInitialSetup,
+  publicChannelInitialSetup,
+} from "../blocks";
+import { Action, type App, type SlashCommandInstance } from "slack.ts";
+import addBots from "../add-bots";
 
 export function registerBotEvents(app: App<"socket">) {
   app.on("/ping-police", handlePingPoliceCommand);
@@ -11,6 +13,8 @@ export function registerBotEvents(app: App<"socket">) {
   app.on("action.dismiss", (action) => {
     action.respond.delete();
   });
+  app.on("action.setup", setupAction);
+  app.on("action.add_bots", addBotsAction);
 }
 
 async function handlePingPoliceCommand(slash: SlashCommandInstance) {
@@ -30,4 +34,40 @@ async function handlePingPoliceCommand(slash: SlashCommandInstance) {
       ephemeral: true,
     });
   }
+}
+
+async function setupAction(action: Action) {
+  if (!action.event.channel || !action.event.channel.id.startsWith("C")) return;
+  const channelInfo = await getChannelInfo(action.event.channel.id);
+  if (
+    // user not CM
+    !channelInfo.managerIds.includes(action.event.user.id) ||
+    // already added
+    (channelInfo.inChannel && channelInfo.selfbotInChannel)
+  )
+    return;
+
+  if (channelInfo.private) {
+    await action.respond.edit({ blocks: privateChannelInitialSetup() });
+  } else {
+    await action.respond.edit({
+      blocks: publicChannelInitialSetup(action.event.channel.id),
+    });
+  }
+}
+
+async function addBotsAction(action: Action) {
+  if (!action.event.channel || !action.event.channel.id.startsWith("C")) return;
+  const channelInfo = await getChannelInfo(action.event.channel.id);
+  if (
+    // user not CM
+    !channelInfo.managerIds.includes(action.event.user.id)
+  )
+    return;
+
+  await addBots(action.event.channel.id);
+
+  await action.respond.edit({
+    text: "I've added the bots to your channel! Run /ping-police to get started.",
+  });
 }
