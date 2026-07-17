@@ -7,5 +7,5 @@ import type { App } from "slack.ts";
 
 export function registerEvents(app: App<"socket">, selfbotSocket: WebSocket) {
   registerSlashCommands(app);
-  registerSelfbotEvents(selfbotSocket);
+  registerSelfbotEvents(selfbotSocket, app);
 }

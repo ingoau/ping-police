@@ -1,10 +1,11 @@
 import type { Event } from "@/slack/types/events";
 import * as threads from "@/db/threads";
 import * as configs from "@/db/configs";
+import type { App } from "slack.ts";
 
 const SUBTEAM_RE = /<!subteam\^([A-Z0-9]+)(?:\|[^>]*)?>/g;
 
-export function registerSelfbotEvents(socket: WebSocket) {
+export function registerSelfbotEvents(socket: WebSocket, app: App<"socket">) {
   socket.addEventListener("message", async (event) => {
     const eventData = JSON.parse(event.data) as Event;
     if (
