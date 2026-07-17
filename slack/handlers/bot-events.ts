@@ -8,6 +8,9 @@ import { blocks, type App, type SlashCommandInstance } from "slack.ts";
 export function registerBotEvents(app: App<"socket">) {
   app.on("/ping-police", handlePingPoliceCommand);
   app.on("/dev-ping-police", handlePingPoliceCommand);
+  app.on("action.dismiss", (action) => {
+    action.respond.delete();
+  });
 }
 
 async function handlePingPoliceCommand(slash: SlashCommandInstance) {
