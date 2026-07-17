@@ -1,5 +1,6 @@
 import type { HeadersInit } from "bun";
 import type { Api } from "./types/api";
+import { env } from "@/env";
 
 type SlackApiAuth =
   | {
@@ -43,11 +44,11 @@ function createSlackApi(auth: SlackApiAuth) {
 
 export const bot = createSlackApi({
   kind: "bot",
-  token: process.env.SLACK_TOKEN!,
+  token: env.SLACK_TOKEN!,
 });
 
 export const selfbot = createSlackApi({
   kind: "selfbot",
-  token: process.env.SLACK_SELFBOT_XOXC!,
-  cookieD: process.env.SLACK_SELFBOT_XOXD!,
+  token: env.SLACK_SELFBOT_XOXC!,
+  cookieD: env.SLACK_SELFBOT_XOXD!,
 });
