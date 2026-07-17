@@ -32,6 +32,12 @@ export function registerSelfbotEvents(socket: WebSocket, app: App<"socket">) {
         await configs.get(eventData.channel, mentionedGroups)
       ).filter((config) => config.enabled);
       const messages = appliedConfigs.map((config) => config.message);
+      app.channel(eventData.channel).send({
+        ephemeral: true,
+        text: messages.join("\n"),
+        user: eventData.user,
+        thread_ts: eventData.thread_ts,
+      });
       console.log(messages.join("\n"));
     }
     if (eventData.type === "ping") {
