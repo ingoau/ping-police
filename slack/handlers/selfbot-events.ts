@@ -30,7 +30,8 @@ export function registerSelfbotEvents(socket: WebSocket) {
       const appliedConfigs = (
         await configs.get(eventData.channel, mentionedGroups)
       ).filter((config) => config.enabled);
-      console.log(appliedConfigs);
+      const messages = appliedConfigs.map((config) => config.message);
+      console.log(messages.join("\n"));
     }
     if (eventData.type === "ping") {
       socket.send(JSON.stringify({ type: "pong", reply_to: eventData.id }));
