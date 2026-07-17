@@ -2,16 +2,14 @@ import { and, eq, inArray } from "drizzle-orm";
 import { db } from "./client";
 import { groupConfigs } from "./schema";
 
-export async function get(channelId: string, groupId: string | string[]) {
+export async function get(channelId: string, groupIds: string[]) {
   return await db
     .select()
     .from(groupConfigs)
     .where(
       and(
         eq(groupConfigs.channelId, channelId),
-        typeof groupId === "string"
-          ? eq(groupConfigs.groupId, groupId)
-          : inArray(groupConfigs.groupId, groupId),
+        inArray(groupConfigs.groupId, groupIds),
       ),
     );
 }
