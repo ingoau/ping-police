@@ -1,7 +1,7 @@
 import type { Event } from "@/slack/types/events";
 import * as threads from "@/db/threads";
 import * as configs from "@/db/configs";
-import type { App } from "slack.ts";
+import { blocks, context, mrkdwn, section, type App } from "slack.ts";
 
 const SUBTEAM_RE = /<!subteam\^([A-Z0-9]+)(?:\|[^>]*)?>/g;
 
@@ -35,7 +35,14 @@ export function registerSelfbotEvents(socket: WebSocket, app: App<"socket">) {
       if (messages.length === 0) return;
       app.channel(eventData.channel).send({
         ephemeral: true,
-        text: messages.join("\n"),
+        blocks: blocks(
+          section(mrkdwn(messages.join("\n"))),
+          context(
+            mrkdwn(
+              "This message is provided by a manager of this channel · DM <@U0923H02Y3B> to report it",
+            ),
+          ),
+        ),
         user: eventData.user,
         thread_ts: eventData.thread_ts,
       });
