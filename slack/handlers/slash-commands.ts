@@ -3,7 +3,7 @@ import type { WebClient } from "@slack/web-api";
 import type { SlashCommandEvent } from "../types/events";
 import getChannelInfo from "../channel-info";
 import { notSetUp } from "../blocks";
-import type { App, SlashCommandInstance } from "slack.ts";
+import { blocks, type App, type SlashCommandInstance } from "slack.ts";
 
 export function registerSlashCommands(app: App<"socket">) {
   app.on("/ping-police", handlePingPoliceCommand);
@@ -20,5 +20,11 @@ async function handlePingPoliceCommand(slash: SlashCommandInstance) {
 
   const channelInfo = await getChannelInfo(slash.channel_id);
 
-  await slash.respond.message({ blocks: notSetUp(), ephemeral: true });
+  // If both bots are not in channel
+  if (!(channelInfo.inChannel && channelInfo.selfbotInChannel)) {
+    const response = await slash.respond.message({
+      blocks: notSetUp(slash.channel_id),
+      ephemeral: true,
+    });
+  }
 }
