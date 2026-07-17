@@ -46,7 +46,6 @@ export function registerSelfbotEvents(socket: WebSocket, app: App<"socket">) {
         user: eventData.user,
         thread_ts: eventData.thread_ts,
       });
-      console.log(messages.join("\n"));
     }
     if (eventData.type === "ping") {
       socket.send(JSON.stringify({ type: "pong", reply_to: eventData.id }));
