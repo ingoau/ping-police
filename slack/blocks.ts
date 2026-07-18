@@ -134,14 +134,13 @@ export const manageGroupSettings = (
         .default(config.message || ""),
     ).optional(false),
     actions(
-      config.enabled
-        ? button("Disable")
-            .value(`${config.groupId}:${config.channelId}`)
-            .id("toggle_enabled")
-        : button("Enable")
-            .value(`${config.groupId}:${config.channelId}`)
-            .id("toggle_enabled"),
-      button("Delete").value(config.groupId).id("delete").style("danger"),
+      button(config.enabled ? "Disable" : "Enable")
+        .value(`${config.groupId}:${config.channelId}`)
+        .id("toggle_enabled"),
+      button("Delete")
+        .value(`${config.groupId}:${config.channelId}`)
+        .id("delete")
+        .style("danger"),
     ),
   );
 };

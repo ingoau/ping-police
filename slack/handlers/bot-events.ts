@@ -6,7 +6,7 @@ import {
   privateChannelInitialSetup,
   publicChannelInitialSetup,
 } from "../blocks";
-import { type App } from "slack.ts";
+import { blocks, R, richText, type App } from "slack.ts";
 import addBots from "../add-bots";
 import * as configs from "@/db/configs";
 import * as selfbot from "@/slack/selfbot";
@@ -130,6 +130,35 @@ export function registerBotEvents(app: App<"socket">) {
     await app.request("views.update", {
       view_id: action.event.view?.id,
       view: manageGroupSettingsModal(config),
+    });
+  });
+  app.on("action:button.delete", async (action) => {
+    if (!action.value) return;
+
+    const [groupId, channelId] = action.value.split(":");
+
+    if (!groupId || !channelId) return;
+
+    const managerIds = await selfbot.getManagers(channelId);
+
+    if (
+      // user not CM
+      !managerIds.includes(action.event.user.id)
+    )
+      return;
+
+    await configs.deleteConfig(channelId, groupId);
+
+    await app.request("views.update", {
+      view_id: action.event.view?.id,
+      view: {
+        title: { type: "plain_text" as const, text: "Ping Police" },
+        type: "modal" as const,
+        close: { type: "plain_text" as const, text: "Close" },
+        blocks: blocks(
+          richText(R.section(R.text("User group has been removed"))),
+        ),
+      },
     });
   });
 }

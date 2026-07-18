@@ -59,3 +59,14 @@ export async function toggle(channelId: string, groupId: string) {
 
   return !config.enabled;
 }
+
+export async function deleteConfig(channelId: string, groupId: string) {
+  await db
+    .delete(groupConfigs)
+    .where(
+      and(
+        eq(groupConfigs.channelId, channelId),
+        eq(groupConfigs.groupId, groupId),
+      ),
+    );
+}
