@@ -11,6 +11,7 @@ import {
   R,
   richText,
   section,
+  type ModalInstance,
 } from "slack.ts";
 
 const PING_POLICE_USER_ID = "U0B29PM729E";
@@ -99,9 +100,7 @@ export const manageSettings = (
       );
       return isManager
         ? block.accessory(
-            button("Edit")
-              .value(`${channelId}:${config.groupId}`)
-              .id("edit_config"),
+            button("Edit").value(config.groupId).id("edit_config"),
           )
         : block;
     }),
@@ -116,28 +115,29 @@ const permissionDenied = () => ({
   ),
 });
 
-const manageGroupSettings = () => ({
-  type: "modal",
-  title: plain("Ping Police").emoji(true).build(),
-  submit: plain("Save").emoji(true).build(),
-  close: plain("Cancel").emoji(true).build(),
-  blocks: blocks(
+export const manageGroupSettings = (
+  config: typeof groupConfigs.$inferSelect,
+) => {
+  return blocks(
     richText(
       R.section(
         R.text("Manage settings for ").bold(),
-        R.usergroup(USERGROUP_ID).bold(),
+        R.usergroup(config.groupId).bold(),
         R.text(" in ").bold(),
-        R.channel(CHANNEL_ID).bold(),
-        R.text(" ").bold(),
+        R.channel(config.channelId).bold(),
+        R.text(":").bold(),
       ),
     ),
     input(
       "Message",
-      plainTextInput().multiline().id("rich_text_input-action"),
+      plainTextInput()
+        .multiline()
+        .id("message")
+        .default(config.message || ""),
     ).optional(false),
     actions(
       button("Disable").value("click_me_123").id("disable"),
       button("Delete").value("click_me_123").id("delete").style("danger"),
     ),
-  ),
-});
+  );
+};

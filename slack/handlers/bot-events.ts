@@ -1,5 +1,6 @@
 import getChannelInfo from "../channel-info";
 import {
+  manageGroupSettings,
   manageSettings,
   notSetUp,
   privateChannelInitialSetup,
@@ -18,6 +19,34 @@ export function registerBotEvents(app: App<"socket">) {
   app.on("action.setup", setupAction);
   app.on("action.add_bots", addBotsAction);
   app.on("action.manual_add_prompt", manualAddPromptAction);
+  app.on("action:button.edit_config", async (action) => {
+    if (!action.event.channel || !action.value) return;
+
+    const channelInfo = await getChannelInfo(action.event.channel.id);
+
+    if (
+      // user not CM
+      !channelInfo.managerIds.includes(action.event.user.id)
+    )
+      return;
+
+    const [config] = await configs.get(action.event.channel.id, [action.value]);
+    if (!config) return;
+
+    await action.respond.modal({
+      blocks: manageGroupSettings(config),
+      title: { type: "plain_text", text: "Ping Police" },
+      type: "modal",
+      submit: {
+        type: "plain_text",
+        text: "Save",
+      },
+      close: {
+        type: "plain_text",
+        text: "Cancel",
+      },
+    });
+  });
 }
 
 async function handlePingPoliceCommand(slash: SlashCommandInstance) {
