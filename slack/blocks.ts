@@ -26,12 +26,6 @@ const textCodeBlock = (text: string) => {
   return builder;
 };
 
-export const setupActions = (channelId: string) =>
-  actions(
-    button("Yes").value(channelId).id("setup").style("primary"),
-    button("No").value(channelId).id("dismiss"),
-  );
-
 export const requiredMembersPrompt = (suffix: string) =>
   richText(
     R.section(
@@ -54,7 +48,10 @@ export const notSetUp = (channelId: string) =>
     richText(
       R.section("Would you like to set up Ping Police in this channel?"),
     ),
-    setupActions(channelId),
+    actions(
+      button("Yes").value(channelId).id("setup").style("primary"),
+      button("No").value(channelId).id("dismiss"),
+    ),
   );
 
 export const publicChannelInitialSetup = (channelId: string) =>
