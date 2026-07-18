@@ -127,18 +127,28 @@ const permissionDenied = () => ({
 });
 
 export const manageGroupSettings = (
-  config: typeof groupConfigs.$inferSelect,
+  config: Pick<typeof groupConfigs.$inferSelect, "channelId"> &
+    Partial<typeof groupConfigs.$inferSelect>,
 ) => {
   return blocks(
     richText(
-      R.section(
-        R.text("Manage settings for ").bold(),
-        R.usergroup(config.groupId).bold(),
-        R.text(" in ").bold(),
-        R.channel(config.channelId).bold(),
-        R.text(":").bold(),
-      ),
+      config.groupId
+        ? R.section(
+            R.text("Manage settings for ").bold(),
+            R.usergroup(config.groupId).bold(),
+            R.text(" in ").bold(),
+            R.channel(config.channelId).bold(),
+            R.text(":").bold(),
+          )
+        : R.section("Add a user group in ", R.channel(config.channelId)),
     ),
+    ...(config.groupId
+      ? []
+      : [
+          input("Group ID", plainTextInput().id("group_id"))
+            .id("group_id_input")
+            .optional(false),
+        ]),
     input(
       "Message",
       plainTextInput()
@@ -148,20 +158,25 @@ export const manageGroupSettings = (
     )
       .id("message_input")
       .optional(false),
-    actions(
-      button(config.enabled ? "Disable" : "Enable")
-        .value(`${config.groupId}:${config.channelId}`)
-        .id("toggle_enabled"),
-      button("Delete")
-        .value(`${config.groupId}:${config.channelId}`)
-        .id("delete")
-        .style("danger"),
-    ),
+    ...(config.groupId
+      ? [
+          actions(
+            button(config.enabled ? "Disable" : "Enable")
+              .value(`${config.groupId}:${config.channelId}`)
+              .id("toggle_enabled"),
+            button("Delete")
+              .value(`${config.groupId}:${config.channelId}`)
+              .id("delete")
+              .style("danger"),
+          ),
+        ]
+      : []),
   );
 };
 
 export const manageGroupSettingsModal = (
-  config: typeof groupConfigs.$inferSelect,
+  config: Pick<typeof groupConfigs.$inferSelect, "channelId"> &
+    Partial<typeof groupConfigs.$inferSelect>,
 ) => ({
   blocks: manageGroupSettings(config),
   title: { type: "plain_text" as const, text: "Ping Police" },
@@ -169,5 +184,5 @@ export const manageGroupSettingsModal = (
   submit: { type: "plain_text" as const, text: "Save" },
   close: { type: "plain_text" as const, text: "Cancel" },
   callback_id: "edit_group_settings",
-  private_metadata: `${config.groupId}:${config.channelId}`,
+  private_metadata: `${config.groupId ?? ""}:${config.channelId}`,
 });

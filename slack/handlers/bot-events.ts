@@ -113,6 +113,18 @@ export function registerBotEvents(app: App<"socket">) {
     });
   });
 
+  app.on("action:button.add_group", async (action) => {
+    if (!action.value) return;
+
+    const managerIds = await selfbot.getManagers(action.value);
+    if (!managerIds.includes(action.event.user.id)) return;
+
+    await app.request("views.push", {
+      trigger_id: action.event.trigger_id,
+      view: manageGroupSettingsModal({ channelId: action.value }),
+    });
+  });
+
   app.on("action:button.toggle_enabled", async (action) => {
     if (!action.value) return;
 
@@ -172,18 +184,23 @@ export function registerBotEvents(app: App<"socket">) {
     });
   });
   app.on("submit.edit_group_settings", async (submission) => {
-    const [groupId, channelId] = submission.view.private_metadata.split(":");
-
-    if (!groupId || !channelId) return;
+    let [groupId, channelId] = submission.view.private_metadata.split(":");
 
     const values = submission.view.state.values as Record<
       string,
       Record<string, { type: string; value?: string }>
     >;
 
+    groupId ||= values.group_id_input?.group_id?.value ?? "";
     const input = values.message_input?.message;
 
-    if (input?.type !== "plain_text_input" || input.value === undefined) return;
+    if (
+      !groupId ||
+      !channelId ||
+      input?.type !== "plain_text_input" ||
+      input.value === undefined
+    )
+      return;
 
     const message = input.value;
 
