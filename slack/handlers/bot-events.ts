@@ -11,9 +11,25 @@ import addBots from "../add-bots";
 import * as configs from "@/db/configs";
 import * as selfbot from "@/slack/selfbot";
 
+async function handleEvent(
+  name: string,
+  event: unknown,
+  handler: () => Promise<void> | void,
+) {
+  try {
+    await handler();
+  } catch (err) {
+    console.error(
+      `[bot] failed to handle ${name}`,
+      err,
+      `\nEvent data: ${JSON.stringify(event)}`,
+    );
+  }
+}
+
 export function registerBotEvents(app: App<"socket">) {
   for (const command of ["/ping-police", "/dev-ping-police"] as const) {
-    app.on(command, async (slash) => {
+    app.on(command, (slash) => handleEvent(command, slash, async () => {
       if (!slash.channel_id.startsWith("C")) {
         await slash.respond.message({
           text: "This command can only be used in a channel.",
@@ -41,12 +57,12 @@ export function registerBotEvents(app: App<"socket">) {
           channelInfo.managerIds.includes(slash.user_id),
         ),
       );
-    });
+    }));
   }
-  app.on("action.dismiss", (action) => {
-    action.respond.delete();
-  });
-  app.on("action.setup", async (action) => {
+  app.on("action.dismiss", (action) =>
+    handleEvent("action.dismiss", action, () => action.respond.delete()),
+  );
+  app.on("action.setup", (action) => handleEvent("action.setup", action, async () => {
     if (!action.event.channel || !action.event.channel.id.startsWith("C"))
       return;
     const channelInfo = await getChannelInfo(action.event.channel.id);
@@ -68,8 +84,8 @@ export function registerBotEvents(app: App<"socket">) {
         blocks: publicChannelInitialSetup(action.event.channel.id),
       });
     }
-  });
-  app.on("action.add_bots", async (action) => {
+  }));
+  app.on("action.add_bots", (action) => handleEvent("action.add_bots", action, async () => {
     if (!action.event.channel || !action.event.channel.id.startsWith("C"))
       return;
     const managerIds = await selfbot.getManagers(action.event.channel.id);
@@ -84,13 +100,13 @@ export function registerBotEvents(app: App<"socket">) {
     await action.respond.edit({
       text: "I've added the bots to your channel! Run /ping-police to get started.",
     });
-  });
-  app.on("action.manual_add_prompt", async (action) => {
+  }));
+  app.on("action.manual_add_prompt", (action) => handleEvent("action.manual_add_prompt", action, async () => {
     await action.respond.edit({
       text: "Ok, once you've added the bots, run /ping-police to get started!",
     });
-  });
-  app.on("action:button.edit_config", async (action) => {
+  }));
+  app.on("action:button.edit_config", (action) => handleEvent("action:button.edit_config", action, async () => {
     if (!action.value) return;
 
     const [groupId, channelId] = action.value.split(":");
@@ -111,9 +127,9 @@ export function registerBotEvents(app: App<"socket">) {
       trigger_id: action.event.trigger_id,
       view: manageGroupSettingsModal(config),
     });
-  });
+  }));
 
-  app.on("action:button.add_group", async (action) => {
+  app.on("action:button.add_group", (action) => handleEvent("action:button.add_group", action, async () => {
     if (!action.value) return;
 
     const managerIds = await selfbot.getManagers(action.value);
@@ -123,9 +139,9 @@ export function registerBotEvents(app: App<"socket">) {
       trigger_id: action.event.trigger_id,
       view: manageGroupSettingsModal({ channelId: action.value }),
     });
-  });
+  }));
 
-  app.on("action:button.toggle_enabled", async (action) => {
+  app.on("action:button.toggle_enabled", (action) => handleEvent("action:button.toggle_enabled", action, async () => {
     if (!action.value) return;
 
     const [groupId, channelId] = action.value.split(":");
@@ -152,8 +168,8 @@ export function registerBotEvents(app: App<"socket">) {
       view_id: action.event.view?.root_view_id,
       view: manageSettingsModal(channelId, await configs.list(channelId), true),
     });
-  });
-  app.on("action:button.delete", async (action) => {
+  }));
+  app.on("action:button.delete", (action) => handleEvent("action:button.delete", action, async () => {
     if (!action.value) return;
 
     const [groupId, channelId] = action.value.split(":");
@@ -182,8 +198,8 @@ export function registerBotEvents(app: App<"socket">) {
         blocks: blocks(richText(R.section("User group has been removed"))),
       },
     });
-  });
-  app.on("submit.edit_group_settings", async (submission) => {
+  }));
+  app.on("submit.edit_group_settings", (submission) => handleEvent("submit.edit_group_settings", submission, async () => {
     let [groupId, channelId] = submission.view.private_metadata.split(":");
 
     const values = submission.view.state.values as Record<
@@ -220,5 +236,5 @@ export function registerBotEvents(app: App<"socket">) {
         ),
       });
     }
-  });
+  }));
 }
