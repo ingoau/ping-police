@@ -13,11 +13,46 @@ export function createClients() {
     receiver: { type: "socket", appToken },
   });
 
-  const selfbotSocket = new WebSocket(websocketUrl.toString(), {
-    headers: {
-      Cookie: `d=${env.SLACK_SELFBOT_XOXD || ""}`,
-    },
-  });
+  return { app };
+}
 
-  return { app, selfbotSocket };
+export function createSelfbotSocket(
+  onConnect: (socket: WebSocket) => void,
+) {
+  let attempt = 0;
+  let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+
+  const connect = () => {
+    const socket = new WebSocket(websocketUrl.toString(), {
+      headers: {
+        Cookie: `d=${env.SLACK_SELFBOT_XOXD}`,
+      },
+    });
+
+    onConnect(socket);
+
+    socket.addEventListener("open", () => {
+      attempt = 0;
+      console.log("[selfbot] connected");
+    });
+
+    socket.addEventListener("error", (event) => {
+      console.error("[selfbot] websocket error", event);
+      socket.close();
+    });
+
+    socket.addEventListener("close", () => {
+      if (reconnectTimer) return;
+
+      const delay = Math.min(1_000 * 2 ** attempt++, 30_000);
+      console.error(`[selfbot] disconnected; retrying in ${delay}ms`);
+
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = undefined;
+        connect();
+      }, delay);
+    });
+  };
+
+  connect();
 }

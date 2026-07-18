@@ -1,9 +1,13 @@
-import { createClients } from "./slack/clients";
-import { registerEvents } from "./slack/register-events";
+import { createClients, createSelfbotSocket } from "./slack/clients";
+import { registerBotEvents } from "./slack/handlers/bot-events";
+import { registerSelfbotEvents } from "./slack/handlers/selfbot-events";
 
-const { app, selfbotSocket } = createClients();
+const { app } = createClients();
 
-registerEvents(app, selfbotSocket);
+registerBotEvents(app);
+createSelfbotSocket((socket) => {
+  registerSelfbotEvents(socket, app);
+});
 
 process.on("unhandledRejection", (reason) => {
   console.error("[process] unhandled rejection:", reason);
