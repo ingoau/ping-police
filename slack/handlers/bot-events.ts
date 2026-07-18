@@ -1,7 +1,7 @@
 import getChannelInfo from "../channel-info";
 import {
   manageGroupSettingsModal,
-  manageSettings,
+  manageSettingsModal,
   notSetUp,
   privateChannelInitialSetup,
   publicChannelInitialSetup,
@@ -34,14 +34,13 @@ export function registerBotEvents(app: App<"socket">) {
 
       const channelConfigs = await configs.list(slash.channel_id);
 
-      await slash.respond.message({
-        blocks: manageSettings(
+      await slash.respond.modal(
+        manageSettingsModal(
           slash.channel_id,
           channelConfigs,
           channelInfo.managerIds.includes(slash.user_id),
         ),
-        ephemeral: true,
-      });
+      );
     });
   }
   app.on("action.dismiss", (action) => {
@@ -92,9 +91,12 @@ export function registerBotEvents(app: App<"socket">) {
     });
   });
   app.on("action:button.edit_config", async (action) => {
-    if (!action.event.channel || !action.value) return;
+    if (!action.value) return;
 
-    const managerIds = await selfbot.getManagers(action.event.channel.id);
+    const [groupId, channelId] = action.value.split(":");
+    if (!groupId || !channelId) return;
+
+    const managerIds = await selfbot.getManagers(channelId);
 
     if (
       // user not CM
@@ -102,10 +104,13 @@ export function registerBotEvents(app: App<"socket">) {
     )
       return;
 
-    const [config] = await configs.get(action.event.channel.id, [action.value]);
+    const [config] = await configs.get(channelId, [groupId]);
     if (!config) return;
 
-    await action.respond.modal(manageGroupSettingsModal(config));
+    await app.request("views.push", {
+      trigger_id: action.event.trigger_id,
+      view: manageGroupSettingsModal(config),
+    });
   });
 
   app.on("action:button.toggle_enabled", async (action) => {
@@ -131,6 +136,10 @@ export function registerBotEvents(app: App<"socket">) {
       view_id: action.event.view?.id,
       view: manageGroupSettingsModal(config),
     });
+    await app.request("views.update", {
+      view_id: action.event.view?.root_view_id,
+      view: manageSettingsModal(channelId, await configs.list(channelId), true),
+    });
   });
   app.on("action:button.delete", async (action) => {
     if (!action.value) return;
@@ -148,16 +157,17 @@ export function registerBotEvents(app: App<"socket">) {
       return;
 
     await configs.deleteConfig(channelId, groupId);
-
+    await app.request("views.update", {
+      view_id: action.event.view?.root_view_id,
+      view: manageSettingsModal(channelId, await configs.list(channelId), true),
+    });
     await app.request("views.update", {
       view_id: action.event.view?.id,
       view: {
         title: { type: "plain_text" as const, text: "Ping Police" },
         type: "modal" as const,
-        close: { type: "plain_text" as const, text: "Close" },
-        blocks: blocks(
-          richText(R.section(R.text("User group has been removed"))),
-        ),
+        close: { type: "plain_text" as const, text: "Back" },
+        blocks: blocks(richText(R.section("User group has been removed"))),
       },
     });
   });

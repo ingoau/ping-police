@@ -98,7 +98,9 @@ export const manageSettings = (
       );
       return isManager
         ? block.accessory(
-            button("Edit").value(config.groupId).id("edit_config"),
+            button("Edit")
+              .value(`${config.groupId}:${channelId}`)
+              .id("edit_config"),
           )
         : block;
     }),
@@ -106,6 +108,17 @@ export const manageSettings = (
       ? [actions(button("Add group").value(channelId).id("add_group"))]
       : []),
   );
+
+export const manageSettingsModal = (
+  channelId: string,
+  configs: (typeof groupConfigs.$inferSelect)[],
+  isManager: boolean,
+) => ({
+  blocks: manageSettings(channelId, configs, isManager),
+  title: { type: "plain_text" as const, text: "Ping Police" },
+  type: "modal" as const,
+  close: { type: "plain_text" as const, text: "Close" },
+});
 
 const permissionDenied = () => ({
   blocks: blocks(
