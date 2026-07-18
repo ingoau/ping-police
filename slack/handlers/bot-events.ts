@@ -6,27 +6,91 @@ import {
   privateChannelInitialSetup,
   publicChannelInitialSetup,
 } from "../blocks";
-import {
-  Action,
-  blocks,
-  mrkdwn,
-  section,
-  type App,
-  type SlashCommandInstance,
-} from "slack.ts";
+import { type App } from "slack.ts";
 import addBots from "../add-bots";
 import * as configs from "@/db/configs";
 import * as selfbot from "@/slack/selfbot";
 
 export function registerBotEvents(app: App<"socket">) {
-  app.on("/ping-police", handlePingPoliceCommand);
-  app.on("/dev-ping-police", handlePingPoliceCommand);
+  for (const command of ["/ping-police", "/dev-ping-police"] as const) {
+    app.on(command, async (slash) => {
+      if (!slash.channel_id.startsWith("C")) {
+        await slash.respond.message({
+          text: "This command can only be used in a channel.",
+        });
+        return;
+      }
+
+      const channelInfo = await getChannelInfo(slash.channel_id);
+
+      // If both bots are not in channel
+      if (!(channelInfo.inChannel && channelInfo.selfbotInChannel)) {
+        await slash.respond.message({
+          blocks: notSetUp(slash.channel_id),
+          ephemeral: true,
+        });
+        return;
+      }
+
+      const channelConfigs = await configs.list(slash.channel_id);
+
+      await slash.respond.message({
+        blocks: manageSettings(
+          slash.channel_id,
+          channelConfigs,
+          channelInfo.managerIds.includes(slash.user_id),
+        ),
+        ephemeral: true,
+      });
+    });
+  }
   app.on("action.dismiss", (action) => {
     action.respond.delete();
   });
-  app.on("action.setup", setupAction);
-  app.on("action.add_bots", addBotsAction);
-  app.on("action.manual_add_prompt", manualAddPromptAction);
+  app.on("action.setup", async (action) => {
+    if (!action.event.channel || !action.event.channel.id.startsWith("C"))
+      return;
+    const channelInfo = await getChannelInfo(action.event.channel.id);
+    if (
+      // user must be a CM or the channel must be private for code to continue
+      !(
+        channelInfo.managerIds.includes(action.event.user.id) ||
+        channelInfo.private
+      ) ||
+      // already added
+      (channelInfo.inChannel && channelInfo.selfbotInChannel)
+    )
+      return;
+
+    if (channelInfo.private) {
+      await action.respond.edit({ blocks: privateChannelInitialSetup() });
+    } else {
+      await action.respond.edit({
+        blocks: publicChannelInitialSetup(action.event.channel.id),
+      });
+    }
+  });
+  app.on("action.add_bots", async (action) => {
+    if (!action.event.channel || !action.event.channel.id.startsWith("C"))
+      return;
+    const managerIds = await selfbot.getManagers(action.event.channel.id);
+    if (
+      // user not CM
+      !managerIds.includes(action.event.user.id)
+    )
+      return;
+
+    await addBots(action.event.channel.id);
+
+    await action.respond.edit({
+      text: "I've added the bots to your channel! Run /ping-police to get started.",
+    });
+  });
+  app.on("action.manual_add_prompt", async (action) => {
+    await action.respond.edit({
+      text: "Ok, once you've added the bots, run /ping-police to get started!",
+    });
+  });
   app.on("action:button.edit_config", async (action) => {
     if (!action.event.channel || !action.value) return;
 
@@ -91,81 +155,5 @@ export function registerBotEvents(app: App<"socket">) {
         },
       },
     });
-  });
-}
-
-async function handlePingPoliceCommand(slash: SlashCommandInstance) {
-  if (!slash.channel_id.startsWith("C")) {
-    await slash.respond.message({
-      text: "This command can only be used in a channel.",
-    });
-    return;
-  }
-
-  const channelInfo = await getChannelInfo(slash.channel_id);
-
-  // If both bots are not in channel
-  if (!(channelInfo.inChannel && channelInfo.selfbotInChannel)) {
-    await slash.respond.message({
-      blocks: notSetUp(slash.channel_id),
-      ephemeral: true,
-    });
-    return;
-  }
-
-  const channelConfigs = await configs.list(slash.channel_id);
-
-  await slash.respond.message({
-    blocks: manageSettings(
-      slash.channel_id,
-      channelConfigs,
-      channelInfo.managerIds.includes(slash.user_id),
-    ),
-    ephemeral: true,
-  });
-}
-
-async function setupAction(action: Action) {
-  if (!action.event.channel || !action.event.channel.id.startsWith("C")) return;
-  const channelInfo = await getChannelInfo(action.event.channel.id);
-  if (
-    // user must be a CM or the channel must be private for code to continue
-    !(
-      channelInfo.managerIds.includes(action.event.user.id) ||
-      channelInfo.private
-    ) ||
-    // already added
-    (channelInfo.inChannel && channelInfo.selfbotInChannel)
-  )
-    return;
-
-  if (channelInfo.private) {
-    await action.respond.edit({ blocks: privateChannelInitialSetup() });
-  } else {
-    await action.respond.edit({
-      blocks: publicChannelInitialSetup(action.event.channel.id),
-    });
-  }
-}
-
-async function addBotsAction(action: Action) {
-  if (!action.event.channel || !action.event.channel.id.startsWith("C")) return;
-  const managerIds = await selfbot.getManagers(action.event.channel.id);
-  if (
-    // user not CM
-    !managerIds.includes(action.event.user.id)
-  )
-    return;
-
-  await addBots(action.event.channel.id);
-
-  await action.respond.edit({
-    text: "I've added the bots to your channel! Run /ping-police to get started.",
-  });
-}
-
-async function manualAddPromptAction(action: Action) {
-  await action.respond.edit({
-    text: "Ok, once you've added the bots, run /ping-police to get started!",
   });
 }
