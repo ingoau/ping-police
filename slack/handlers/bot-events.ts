@@ -7,6 +7,7 @@ import {
 } from "../blocks";
 import { Action, type App, type SlashCommandInstance } from "slack.ts";
 import addBots from "../add-bots";
+import * as configs from "@/db/configs";
 
 export function registerBotEvents(app: App<"socket">) {
   app.on("/ping-police", handlePingPoliceCommand);
@@ -38,8 +39,14 @@ async function handlePingPoliceCommand(slash: SlashCommandInstance) {
     return;
   }
 
+  const channelConfigs = await configs.list(slash.channel_id);
+
   await slash.respond.message({
-    blocks: manageSettings(slash.channel_id, [], true),
+    blocks: manageSettings(
+      slash.channel_id,
+      channelConfigs,
+      channelInfo.managerIds.includes(slash.user_id),
+    ),
     ephemeral: true,
   });
 }
