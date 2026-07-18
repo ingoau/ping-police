@@ -1,3 +1,4 @@
+import type { RichTextBlockElement } from "@slack/types";
 import {
   actions,
   blocks,
@@ -16,6 +17,14 @@ const PING_POLICE_USER_ID = "U0B29PM729E";
 const SELF_BOT_USER_ID = "U0B18U7A9DH";
 const CHANNEL_ID = "C0BEVRMGY23";
 const USERGROUP_ID = "S0B1M8N1PLJ";
+
+const textCodeBlock = (text: string) => {
+  const builder = R.pre(R.text(text));
+  const build = builder.build.bind(builder);
+  builder.build = () =>
+    ({ ...build(), language: "text" }) as ReturnType<typeof build>;
+  return builder;
+};
 
 export const setupActions = (channelId: string) =>
   actions(
@@ -64,10 +73,9 @@ export const privateChannelInitialSetup = () =>
     requiredMembersPrompt(
       " to the channel.\nSince this is a private channel, you need to do it yourself.\nYou can run the following commands:",
     ),
-    section(
-      mrkdwn(
-        "```text\n/invite @[Dev] Ping Police\n```\n```text\n/invite @Ping Police (Selfbot) \n```",
-      ),
+    richText(
+      textCodeBlock("/invite @[Dev] Ping Police"),
+      textCodeBlock("/invite @Ping Police (Selfbot)"),
     ),
   );
 
