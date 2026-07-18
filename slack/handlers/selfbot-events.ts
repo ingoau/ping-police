@@ -70,7 +70,6 @@ export function registerSelfbotEvents(socket: WebSocket, app: App<"socket">) {
       const key = `${eventData.channel}:${eventData.thread_ts}:${eventData.user}`;
       const existingTimestamp = ephemerals.get(key);
       if (existingTimestamp !== undefined && existingTimestamp > Date.now()) {
-        ephemerals.delete(key);
         return;
       }
 
