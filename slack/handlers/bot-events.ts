@@ -171,4 +171,37 @@ export function registerBotEvents(app: App<"socket">) {
       },
     });
   });
+  app.on("submit.edit_group_settings", async (submission) => {
+    const [groupId, channelId] = submission.view.private_metadata.split(":");
+
+    if (!groupId || !channelId) return;
+
+    const values = submission.view.state.values as Record<
+      string,
+      Record<string, { type: string; value?: string }>
+    >;
+
+    const input = values.message_input?.message;
+
+    if (input?.type !== "plain_text_input" || input.value === undefined) return;
+
+    const message = input.value;
+
+    await configs.updateOrCreate({
+      channelId,
+      groupId,
+      message,
+    });
+
+    if (submission.view.root_view_id) {
+      await app.request("views.update", {
+        view_id: submission.view.root_view_id,
+        view: manageSettingsModal(
+          channelId,
+          await configs.list(channelId),
+          true,
+        ),
+      });
+    }
+  });
 }

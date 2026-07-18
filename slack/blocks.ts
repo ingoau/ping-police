@@ -145,7 +145,9 @@ export const manageGroupSettings = (
         .multiline()
         .id("message")
         .default(config.message || ""),
-    ).optional(false),
+    )
+      .id("message_input")
+      .optional(false),
     actions(
       button(config.enabled ? "Disable" : "Enable")
         .value(`${config.groupId}:${config.channelId}`)
@@ -166,4 +168,6 @@ export const manageGroupSettingsModal = (
   type: "modal" as const,
   submit: { type: "plain_text" as const, text: "Save" },
   close: { type: "plain_text" as const, text: "Cancel" },
+  callback_id: "edit_group_settings",
+  private_metadata: `${config.groupId}:${config.channelId}`,
 });

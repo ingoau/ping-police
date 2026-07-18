@@ -9,7 +9,7 @@ import {
 export const groupConfigs = sqliteTable(
   "group_configs",
   {
-    enabled: integer("enabled", { mode: "boolean" }).notNull(),
+    enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
     channelId: text("channel_id").notNull(),
     groupId: text("group_id").notNull(),
     message: text("message"),
