@@ -28,11 +28,14 @@ COPY . .
 
 # copy production dependencies and source code into final image
 FROM base AS release
-COPY --from=install /temp/prod/node_modules node_modules
-COPY --from=prerelease /usr/src/app/index.ts .
-COPY --from=prerelease /usr/src/app/package.json .
+WORKDIR /usr/src/app
 
-# run the app
+COPY --from=install /temp/prod/node_modules ./node_modules
+COPY --from=prerelease /usr/src/app/package.json ./
+COPY --from=prerelease /usr/src/app/index.ts ./
+COPY --from=prerelease /usr/src/app/env.ts ./
+COPY --from=prerelease /usr/src/app/db ./db
+COPY --from=prerelease /usr/src/app/slack ./slack
+
 USER bun
-EXPOSE 3000/tcp
-ENTRYPOINT [ "bun", "run", "index.ts" ]
+ENTRYPOINT ["bun", "run", "index.ts"]
