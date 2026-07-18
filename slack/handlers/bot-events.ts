@@ -16,6 +16,7 @@ import {
 } from "slack.ts";
 import addBots from "../add-bots";
 import * as configs from "@/db/configs";
+import * as selfbot from "@/slack/selfbot";
 
 export function registerBotEvents(app: App<"socket">) {
   app.on("/ping-police", handlePingPoliceCommand);
@@ -29,11 +30,11 @@ export function registerBotEvents(app: App<"socket">) {
   app.on("action:button.edit_config", async (action) => {
     if (!action.event.channel || !action.value) return;
 
-    const channelInfo = await getChannelInfo(action.event.channel.id);
+    const managerIds = await selfbot.getManagers(action.event.channel.id);
 
     if (
       // user not CM
-      !channelInfo.managerIds.includes(action.event.user.id)
+      !managerIds.includes(action.event.user.id)
     )
       return;
 
@@ -62,11 +63,11 @@ export function registerBotEvents(app: App<"socket">) {
 
     if (!groupId || !channelId) return;
 
-    const channelInfo = await getChannelInfo(channelId);
+    const managerIds = await selfbot.getManagers(channelId);
 
     if (
       // user not CM
-      !channelInfo.managerIds.includes(action.event.user.id)
+      !managerIds.includes(action.event.user.id)
     )
       return;
 
@@ -149,10 +150,10 @@ async function setupAction(action: Action) {
 
 async function addBotsAction(action: Action) {
   if (!action.event.channel || !action.event.channel.id.startsWith("C")) return;
-  const channelInfo = await getChannelInfo(action.event.channel.id);
+  const managerIds = await selfbot.getManagers(action.event.channel.id);
   if (
     // user not CM
-    !channelInfo.managerIds.includes(action.event.user.id)
+    !managerIds.includes(action.event.user.id)
   )
     return;
 
