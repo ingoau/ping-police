@@ -33,3 +33,29 @@ export async function updateOrCreate(config: typeof groupConfigs.$inferInsert) {
       },
     });
 }
+
+export async function toggle(channelId: string, groupId: string) {
+  const [config] = await db
+    .select()
+    .from(groupConfigs)
+    .where(
+      and(
+        eq(groupConfigs.channelId, channelId),
+        eq(groupConfigs.groupId, groupId),
+      ),
+    );
+
+  if (!config) return;
+
+  await db
+    .update(groupConfigs)
+    .set({ enabled: !config.enabled })
+    .where(
+      and(
+        eq(groupConfigs.channelId, channelId),
+        eq(groupConfigs.groupId, groupId),
+      ),
+    );
+
+  return !config.enabled;
+}

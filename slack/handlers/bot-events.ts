@@ -6,7 +6,14 @@ import {
   privateChannelInitialSetup,
   publicChannelInitialSetup,
 } from "../blocks";
-import { Action, type App, type SlashCommandInstance } from "slack.ts";
+import {
+  Action,
+  blocks,
+  mrkdwn,
+  section,
+  type App,
+  type SlashCommandInstance,
+} from "slack.ts";
 import addBots from "../add-bots";
 import * as configs from "@/db/configs";
 
@@ -44,6 +51,43 @@ export function registerBotEvents(app: App<"socket">) {
       close: {
         type: "plain_text",
         text: "Cancel",
+      },
+    });
+  });
+
+  app.on("action:button.toggle_enabled", async (action) => {
+    if (!action.value) return;
+
+    const [groupId, channelId] = action.value.split(":");
+
+    if (!groupId || !channelId) return;
+
+    const channelInfo = await getChannelInfo(channelId);
+
+    if (
+      // user not CM
+      !channelInfo.managerIds.includes(action.event.user.id)
+    )
+      return;
+
+    await configs.toggle(channelId, groupId);
+    const [config] = await configs.get(channelId, [groupId]);
+    if (!config) return;
+
+    await app.request("views.update", {
+      view_id: action.event.view?.id,
+      view: {
+        blocks: manageGroupSettings(config),
+        title: { type: "plain_text", text: "Ping Police" },
+        type: "modal",
+        submit: {
+          type: "plain_text",
+          text: "Save",
+        },
+        close: {
+          type: "plain_text",
+          text: "Cancel",
+        },
       },
     });
   });
