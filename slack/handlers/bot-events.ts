@@ -15,6 +15,7 @@ export function registerBotEvents(app: App<"socket">) {
   });
   app.on("action.setup", setupAction);
   app.on("action.add_bots", addBotsAction);
+  app.on("action.manual_add_prompt", manualAddPromptAction);
 }
 
 async function handlePingPoliceCommand(slash: SlashCommandInstance) {
@@ -29,7 +30,7 @@ async function handlePingPoliceCommand(slash: SlashCommandInstance) {
 
   // If both bots are not in channel
   if (!(channelInfo.inChannel && channelInfo.selfbotInChannel)) {
-    const response = await slash.respond.message({
+    await slash.respond.message({
       blocks: notSetUp(slash.channel_id),
       ephemeral: true,
     });
@@ -72,5 +73,11 @@ async function addBotsAction(action: Action) {
 
   await action.respond.edit({
     text: "I've added the bots to your channel! Run /ping-police to get started.",
+  });
+}
+
+async function manualAddPromptAction(action: Action) {
+  await action.respond.edit({
+    text: "Ok, once you've added the bots, run /ping-police to get started!",
   });
 }

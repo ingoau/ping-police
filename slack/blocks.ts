@@ -1,4 +1,3 @@
-import type { RichTextBlockElement } from "@slack/types";
 import {
   actions,
   blocks,
@@ -27,14 +26,12 @@ const textCodeBlock = (text: string) => {
 };
 
 export const requiredMembersPrompt = (suffix: string) =>
-  richText(
-    R.section(
-      "To continue, you need to add ",
-      R.user(PING_POLICE_USER_ID),
-      " and ",
-      R.user(SELF_BOT_USER_ID),
-      suffix,
-    ),
+  R.section(
+    "To continue, you need to add ",
+    R.user(PING_POLICE_USER_ID),
+    " and ",
+    R.user(SELF_BOT_USER_ID),
+    suffix,
   );
 
 export const notSetUp = (channelId: string) =>
@@ -56,23 +53,26 @@ export const notSetUp = (channelId: string) =>
 
 export const publicChannelInitialSetup = (channelId: string) =>
   blocks(
-    requiredMembersPrompt(
-      " to the channel.\nWould you like me to do this for you?",
+    richText(
+      requiredMembersPrompt(
+        " to the channel.\nWould you like me to do this for you?",
+      ),
     ),
     actions(
       button("Do that for me").value(channelId).id("add_bots").style("primary"),
-      button("I'll do it myself").value(channelId).id("dismiss"),
+      button("I'll do it myself").id("manual_add_prompt"),
     ),
   );
 
 export const privateChannelInitialSetup = () =>
   blocks(
-    requiredMembersPrompt(
-      " to the channel.\nSince this is a private channel, you need to do it yourself.\nYou can run the following commands:",
-    ),
     richText(
+      requiredMembersPrompt(
+        " to the channel.\nSince this is a private channel, you need to do it yourself.\nYou can run the following commands:",
+      ),
       textCodeBlock("/invite @[Dev] Ping Police"),
       textCodeBlock("/invite @Ping Police (Selfbot)"),
+      R.section("Then run /ping-police to get started"),
     ),
   );
 
