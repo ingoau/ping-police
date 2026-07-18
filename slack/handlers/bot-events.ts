@@ -40,8 +40,11 @@ async function setupAction(action: Action) {
   if (!action.event.channel || !action.event.channel.id.startsWith("C")) return;
   const channelInfo = await getChannelInfo(action.event.channel.id);
   if (
-    // user not CM
-    !channelInfo.managerIds.includes(action.event.user.id) ||
+    // user must be a CM or the channel must be private for code to continue
+    !(
+      channelInfo.managerIds.includes(action.event.user.id) ||
+      channelInfo.private
+    ) ||
     // already added
     (channelInfo.inChannel && channelInfo.selfbotInChannel)
   )
