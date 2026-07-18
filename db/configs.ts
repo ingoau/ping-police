@@ -28,7 +28,6 @@ export async function updateOrCreate(config: typeof groupConfigs.$inferInsert) {
     .onConflictDoUpdate({
       target: [groupConfigs.channelId, groupConfigs.groupId],
       set: {
-        enabled: config.enabled,
         message: config.message,
       },
     });
