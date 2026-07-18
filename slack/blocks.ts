@@ -6,12 +6,10 @@ import {
   divider,
   input,
   mrkdwn,
-  plain,
   plainTextInput,
   R,
   richText,
   section,
-  type ModalInstance,
 } from "slack.ts";
 
 const PING_POLICE_USER_ID = "U0B29PM729E";
@@ -147,3 +145,13 @@ export const manageGroupSettings = (
     ),
   );
 };
+
+export const manageGroupSettingsModal = (
+  config: typeof groupConfigs.$inferSelect,
+) => ({
+  blocks: manageGroupSettings(config),
+  title: { type: "plain_text" as const, text: "Ping Police" },
+  type: "modal" as const,
+  submit: { type: "plain_text" as const, text: "Save" },
+  close: { type: "plain_text" as const, text: "Cancel" },
+});

@@ -1,6 +1,6 @@
 import getChannelInfo from "../channel-info";
 import {
-  manageGroupSettings,
+  manageGroupSettingsModal,
   manageSettings,
   notSetUp,
   privateChannelInitialSetup,
@@ -105,19 +105,7 @@ export function registerBotEvents(app: App<"socket">) {
     const [config] = await configs.get(action.event.channel.id, [action.value]);
     if (!config) return;
 
-    await action.respond.modal({
-      blocks: manageGroupSettings(config),
-      title: { type: "plain_text", text: "Ping Police" },
-      type: "modal",
-      submit: {
-        type: "plain_text",
-        text: "Save",
-      },
-      close: {
-        type: "plain_text",
-        text: "Cancel",
-      },
-    });
+    await action.respond.modal(manageGroupSettingsModal(config));
   });
 
   app.on("action:button.toggle_enabled", async (action) => {
@@ -141,19 +129,7 @@ export function registerBotEvents(app: App<"socket">) {
 
     await app.request("views.update", {
       view_id: action.event.view?.id,
-      view: {
-        blocks: manageGroupSettings(config),
-        title: { type: "plain_text", text: "Ping Police" },
-        type: "modal",
-        submit: {
-          type: "plain_text",
-          text: "Save",
-        },
-        close: {
-          type: "plain_text",
-          text: "Cancel",
-        },
-      },
+      view: manageGroupSettingsModal(config),
     });
   });
 }
