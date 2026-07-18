@@ -1,5 +1,6 @@
 import getChannelInfo from "../channel-info";
 import {
+  manageSettings,
   notSetUp,
   privateChannelInitialSetup,
   publicChannelInitialSetup,
@@ -34,7 +35,13 @@ async function handlePingPoliceCommand(slash: SlashCommandInstance) {
       blocks: notSetUp(slash.channel_id),
       ephemeral: true,
     });
+    return;
   }
+
+  await slash.respond.message({
+    blocks: manageSettings(slash.channel_id, [], true),
+    ephemeral: true,
+  });
 }
 
 async function setupAction(action: Action) {

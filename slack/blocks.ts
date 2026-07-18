@@ -1,3 +1,4 @@
+import type { groupConfigs } from "@/db/schema";
 import {
   actions,
   blocks,
@@ -33,6 +34,8 @@ export const requiredMembersPrompt = (suffix: string) =>
     R.user(SELF_BOT_USER_ID),
     suffix,
   );
+
+// Setup flow stuff
 
 export const notSetUp = (channelId: string) =>
   blocks(
@@ -76,14 +79,36 @@ export const privateChannelInitialSetup = () =>
     ),
   );
 
-const manageSettings = () => ({
-  blocks: blocks(
-    richText(R.section("Manage settings for ", R.channel(CHANNEL_ID))),
-    section(
-      `<!subteam^${USERGROUP_ID}> - Enabled\n Message: \`Message here\``,
-    ).accessory(button("Edit").value("click_me_123").id("button-action")),
-  ),
-});
+// Settings
+export const manageSettings = (
+  channelId: string,
+  configs: (typeof groupConfigs.$inferSelect)[],
+  isManager: boolean,
+) =>
+  blocks(
+    richText(
+      R.section(
+        `${isManager ? "Manage" : "View"} user group settings for `,
+        R.channel(channelId),
+        R.text(":"),
+      ),
+    ),
+    ...configs.map((config) => {
+      const block = section(
+        `<!subteam^${config.groupId}> - ${config.enabled ? "Enabled" : "Disabled"}\n Message: \`${config.message}\``,
+      );
+      return isManager
+        ? block.accessory(
+            button("Edit")
+              .value(`${channelId}:${config.groupId}`)
+              .id("edit_config"),
+          )
+        : block;
+    }),
+    ...(isManager
+      ? [actions(button("Add group").value(channelId).id("add_group"))]
+      : []),
+  );
 
 const permissionDenied = () => ({
   blocks: blocks(
