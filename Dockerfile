@@ -36,6 +36,8 @@ COPY --from=prerelease /usr/src/app/index.ts ./
 COPY --from=prerelease /usr/src/app/env.ts ./
 COPY --from=prerelease /usr/src/app/db ./db
 COPY --from=prerelease /usr/src/app/slack ./slack
+COPY --from=prerelease /usr/src/app/drizzle.config.ts ./
+COPY --from=prerelease /usr/src/app/drizzle ./drizzle
 
 USER bun
-ENTRYPOINT ["bun", "run", "index.ts"]
+ENTRYPOINT ["sh", "-c", "bunx drizzle-kit migrate && exec bun run index.ts"]
