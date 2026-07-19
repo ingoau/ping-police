@@ -5,6 +5,6 @@ export default defineConfig({
   schema: "./db/schema.ts",
   out: "./drizzle",
   dbCredentials: {
-    url: process.env.SQLITE_PATH || "sqlite.db",
+    url: `file:${process.env.SQLITE_PATH || "sqlite.db"}`,
   },
 });
