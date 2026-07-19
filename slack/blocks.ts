@@ -1,19 +1,16 @@
 import type { groupConfigs } from "@/db/schema";
+import { env } from "@/env";
 import {
   actions,
   blocks,
   button,
   divider,
   input,
-  mrkdwn,
   plainTextInput,
   R,
   richText,
   section,
 } from "slack.ts";
-
-const PING_POLICE_USER_ID = "U0B18U7A9DH";
-const SELF_BOT_USER_ID = "U0B29PM729E";
 
 const textCodeBlock = (text: string) => {
   const builder = R.pre(R.text(text));
@@ -26,9 +23,9 @@ const textCodeBlock = (text: string) => {
 export const requiredMembersPrompt = (suffix: string) =>
   R.section(
     "To continue, you need to add ",
-    R.user(PING_POLICE_USER_ID),
+    R.user(env.PING_POLICE_USER_ID),
     " and ",
-    R.user(SELF_BOT_USER_ID),
+    R.user(env.SELF_BOT_USER_ID),
     suffix,
   );
 
