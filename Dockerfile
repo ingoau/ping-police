@@ -30,6 +30,8 @@ COPY . .
 FROM base AS release
 WORKDIR /usr/src/app
 
+RUN mkdir /data && chown bun:bun /data
+
 COPY --from=install /temp/prod/node_modules ./node_modules
 COPY --from=prerelease /usr/src/app/package.json ./
 COPY --from=prerelease /usr/src/app/index.ts ./

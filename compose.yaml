@@ -1,0 +1,15 @@
+services:
+  ping-police:
+    image: registry.gitlab.com/ingowolf/ping-police:main
+    restart: unless-stopped
+    environment:
+      SLACK_TOKEN: ${SLACK_TOKEN:?required}
+      SLACK_APP_TOKEN: ${SLACK_APP_TOKEN:?required}
+      SLACK_SELFBOT_XOXC: ${SLACK_SELFBOT_XOXC:?required}
+      SLACK_SELFBOT_XOXD: ${SLACK_SELFBOT_XOXD:?required}
+      SQLITE_PATH: /data/sqlite.db
+    volumes:
+      - ping-police-data:/data
+
+volumes:
+  ping-police-data:
