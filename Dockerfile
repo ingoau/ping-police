@@ -36,6 +36,7 @@ COPY --from=install /temp/prod/node_modules ./node_modules
 COPY --from=prerelease /usr/src/app/package.json ./
 COPY --from=prerelease /usr/src/app/index.ts ./
 COPY --from=prerelease /usr/src/app/env.ts ./
+COPY --from=prerelease /usr/src/app/.tsconfig.json ./
 COPY --from=prerelease /usr/src/app/db ./db
 COPY --from=prerelease /usr/src/app/slack ./slack
 COPY --from=prerelease /usr/src/app/drizzle.config.ts ./
