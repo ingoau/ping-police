@@ -12,10 +12,8 @@ import {
   section,
 } from "slack.ts";
 
-const PING_POLICE_USER_ID = "U0B29PM729E";
-const SELF_BOT_USER_ID = "U0B18U7A9DH";
-const CHANNEL_ID = "C0BEVRMGY23";
-const USERGROUP_ID = "S0B1M8N1PLJ";
+const PING_POLICE_USER_ID = "U0B18U7A9DH";
+const SELF_BOT_USER_ID = "U0B29PM729E";
 
 const textCodeBlock = (text: string) => {
   const builder = R.pre(R.text(text));
