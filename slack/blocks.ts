@@ -67,7 +67,7 @@ export const privateChannelInitialSetup = () =>
       requiredMembersPrompt(
         " to the channel.\nSince this is a private channel, you need to do it yourself.\nYou can run the following commands:",
       ),
-      textCodeBlock("/invite @[Dev] Ping Police"),
+      textCodeBlock("/invite @Ping Police"),
       textCodeBlock("/invite @Ping Police (Selfbot)"),
       R.section("Then run /ping-police to get started"),
     ),
