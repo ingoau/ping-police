@@ -21,6 +21,12 @@ export async function list(channelId: string) {
     .where(eq(groupConfigs.channelId, channelId));
 }
 
+export async function listAll() {
+  return await db
+    .select()
+    .from(groupConfigs);
+}
+
 export async function updateOrCreate(config: typeof groupConfigs.$inferInsert) {
   await db
     .insert(groupConfigs)
