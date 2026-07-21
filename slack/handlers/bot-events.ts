@@ -32,8 +32,14 @@ export function registerBotEvents(app: App<"socket">) {
     app.on(command, (slash) =>
       handleEvent(command, slash, async () => {
         if (slash.text === "stats") {
+          const allConfigs = await configs.listAll();
+
+          const configuredChannels = [
+            ...new Set(allConfigs.map((config) => config.channelId)),
+          ];
+
           await slash.respond.message({
-            text: "stats here",
+            text: `Configured in ${configuredChannels.length} channels, with ${allConfigs.length} rules overall`,
             ephemeral: true,
           });
           return;
