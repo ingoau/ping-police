@@ -1,15 +1,17 @@
 import getChannelInfo from "../channel-info";
 import {
   manageGroupSettingsModal,
-  manageSettingsModal,
   notSetUp,
   privateChannelInitialSetup,
   publicChannelInitialSetup,
 } from "../blocks";
-import { blocks, R, richText, type App } from "slack.ts";
+import { blocks, option, R, richText, type App } from "slack.ts";
 import addBots from "../add-bots";
 import * as configs from "@/db/configs";
 import * as selfbot from "@/slack/selfbot";
+import * as usergroups from "@/slack/usergroups";
+import * as analytics from "@/db/analytics";
+import * as views from "@/slack/views";
 
 async function handleEvent(
   name: string,
@@ -31,15 +33,12 @@ export function registerBotEvents(app: App<"socket">) {
   for (const command of ["/ping-police", "/dev-ping-police"] as const) {
     app.on(command, (slash) =>
       handleEvent(command, slash, async () => {
-        if (slash.text === "stats") {
-          const allConfigs = await configs.listAll();
-
-          const configuredChannels = [
-            ...new Set(allConfigs.map((config) => config.channelId)),
-          ];
-
+        if (slash.text.trim() === "stats") {
           await slash.respond.message({
-            text: `Configured in ${configuredChannels.length} channels, with ${allConfigs.length} rules overall`,
+            text: "Ping Police stats",
+            blocks: await views.stats(
+              slash.channel_id.startsWith("C") ? slash.channel_id : undefined,
+            ),
             ephemeral: true,
           });
           return;
@@ -63,12 +62,9 @@ export function registerBotEvents(app: App<"socket">) {
           return;
         }
 
-        const channelConfigs = await configs.list(slash.channel_id);
-
         await slash.respond.modal(
-          manageSettingsModal(
+          await views.settingsModal(
             slash.channel_id,
-            channelConfigs,
             channelInfo.managerIds.includes(slash.user_id),
           ),
         );
@@ -193,11 +189,7 @@ export function registerBotEvents(app: App<"socket">) {
       });
       await app.request("views.update", {
         view_id: action.event.view?.root_view_id,
-        view: manageSettingsModal(
-          channelId,
-          await configs.list(channelId),
-          true,
-        ),
+        view: await views.settingsModal(channelId, true),
       });
     }),
   );
@@ -220,11 +212,7 @@ export function registerBotEvents(app: App<"socket">) {
       await configs.deleteConfig(channelId, groupId);
       await app.request("views.update", {
         view_id: action.event.view?.root_view_id,
-        view: manageSettingsModal(
-          channelId,
-          await configs.list(channelId),
-          true,
-        ),
+        view: await views.settingsModal(channelId, true),
       });
       await app.request("views.update", {
         view_id: action.event.view?.id,
@@ -237,27 +225,119 @@ export function registerBotEvents(app: App<"socket">) {
       });
     }),
   );
+  app.on("action:button.toggle_analytics", (action) =>
+    handleEvent("action:button.toggle_analytics", action, async () => {
+      const channelId = action.value;
+      if (!channelId) return;
+
+      const managerIds = await selfbot.getManagers(channelId);
+      if (!managerIds.includes(action.event.user.id)) return;
+
+      await analytics.toggle(channelId);
+
+      await app.request("views.update", {
+        view_id: action.event.view?.id,
+        view: await views.settingsModal(channelId, true),
+      });
+    }),
+  );
+  app.on("autocomplete.group_select", (autocomplete) =>
+    handleEvent("autocomplete.group_select", autocomplete, async () => {
+      let groups: usergroups.UserGroup[] = [];
+      try {
+        // Slack gives up on option requests after 3 seconds
+        groups = (
+          await Promise.race([
+            usergroups.getGroups(),
+            Bun.sleep(2_000).then(() => {
+              throw new Error("timed out loading user groups");
+            }),
+          ])
+        ).groups;
+      } catch (err) {
+        // Still let people pick a pasted group ID if the list can't be loaded
+        console.error("[bot] failed to list user groups", err);
+      }
+
+      await autocomplete.respond(
+        ...usergroups
+          .groupOptions(groups, autocomplete.raw.value)
+          .map((o) => option(o.text, o.value)),
+      );
+    }),
+  );
   app.on("submit.edit_group_settings", (submission) =>
     handleEvent("submit.edit_group_settings", submission, async () => {
-      let [groupId, channelId] = submission.view.private_metadata.split(":");
+      const [existingGroupId, channelId] =
+        submission.view.private_metadata.split(":");
+      const isNewGroup = !existingGroupId;
 
       const values = submission.view.state.values as Record<
         string,
-        Record<string, { type: string; value?: string }>
+        Record<
+          string,
+          {
+            type: string;
+            value?: string | null;
+            selected_option?: { value?: string } | null;
+          }
+        >
       >;
 
-      groupId ||= values.group_id_input?.group_id?.value ?? "";
+      const selectedGroup =
+        values.group_select_input?.group_select?.selected_option?.value;
+      const groupId = existingGroupId || selectedGroup;
       const input = values.message_input?.message;
 
-      if (
-        !groupId ||
-        !channelId ||
-        input?.type !== "plain_text_input" ||
-        input.value === undefined
-      )
-        return;
+      if (!groupId || !channelId || input?.type !== "plain_text_input") return;
 
-      const message = input.value;
+      // The modal has already closed, so problems are shown as a notice on the
+      // settings modal underneath it
+      const showNotice = async (notice: string, isManager = true) => {
+        if (!submission.view.root_view_id) return;
+        await app.request("views.update", {
+          view_id: submission.view.root_view_id,
+          view: await views.settingsModal(channelId, isManager, notice),
+        });
+      };
+
+      // Only channel managers can change settings
+      const managerIds = await selfbot.getManagers(channelId);
+      if (!managerIds.includes(submission.user.id)) {
+        await showNotice(
+          "Only channel managers can change these settings, so your changes weren't saved.",
+          false,
+        );
+        return;
+      }
+
+      // An empty message means the group uses the default message
+      const message = input.value?.trim() ? input.value : null;
+
+      if (isNewGroup) {
+        let group;
+        try {
+          group = await usergroups.resolveGroup(groupId);
+        } catch (err) {
+          console.error(`[bot] failed to look up user group ${groupId}`, err);
+          await showNotice(
+            "Couldn't check that user group right now, so it wasn't added. Please try again in a minute.",
+          );
+          return;
+        }
+        if (!group) {
+          await showNotice(
+            `Couldn't find a user group with the ID \`${groupId}\`, so it wasn't added.`,
+          );
+          return;
+        }
+        if ((await configs.get(channelId, [groupId])).length > 0) {
+          await showNotice(
+            `<!subteam^${groupId}> is already set up in this channel. Use its Edit button to change it.`,
+          );
+          return;
+        }
+      }
 
       await configs.updateOrCreate({
         channelId,
@@ -268,11 +348,7 @@ export function registerBotEvents(app: App<"socket">) {
       if (submission.view.root_view_id) {
         await app.request("views.update", {
           view_id: submission.view.root_view_id,
-          view: manageSettingsModal(
-            channelId,
-            await configs.list(channelId),
-            true,
-          ),
+          view: await views.settingsModal(channelId, true),
         });
       }
     }),

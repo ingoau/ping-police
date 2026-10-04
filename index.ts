@@ -1,6 +1,8 @@
 import { createClients, createSelfbotSocket } from "./slack/clients";
 import { registerBotEvents } from "./slack/handlers/bot-events";
 import { registerSelfbotEvents } from "./slack/handlers/selfbot-events";
+import { getGroups } from "./slack/usergroups";
+import { env } from "./env";
 
 const { app } = createClients();
 
@@ -15,5 +17,16 @@ process.on("unhandledRejection", (reason) => {
 process.on("uncaughtException", (reason) => {
   console.error("[process] uncaught exception:", reason);
 });
+
+if (!env.REPORT_USER_ID) {
+  console.warn(
+    "[env] REPORT_USER_ID is not set; warnings won't say who to contact to report them",
+  );
+}
+
+// Warm the user group cache so the first group search answers quickly
+getGroups().catch((err) =>
+  console.error("[usergroups] failed to load user groups", err),
+);
 
 await app.start();

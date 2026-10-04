@@ -2,6 +2,8 @@ import type {
   ConversationsInfoResponse,
   ConversationsJoinResponse,
   ConversationsInviteResponse,
+  UsergroupsListResponse,
+  UsergroupsUsersListResponse,
 } from "@slack/web-api";
 
 type NoPerms = {
@@ -24,4 +26,6 @@ export type Api = {
   "conversations.info": ConversationsInfoResponse;
   "conversations.join": ConversationsJoinResponse;
   "conversations.invite": ConversationsInviteResponse;
+  "usergroups.list": UsergroupsListResponse;
+  "usergroups.users.list": UsergroupsUsersListResponse;
 };
