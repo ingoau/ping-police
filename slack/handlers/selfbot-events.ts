@@ -3,12 +3,13 @@ import * as threads from "@/db/threads";
 import * as configs from "@/db/configs";
 import { blocks, context, mrkdwn, section, type App } from "slack.ts";
 import { env } from "@/env";
+import { Cooldowns } from "@/slack/cooldowns";
 
 const SUBTEAM_RE = /<!subteam\^([A-Z0-9]+)(?:\|[^>]*)?>/g;
 
-// channel:thread_ts:user
-const ephemerals = new Map<string, number>();
-const EPHEMRAL_TTL_MS = 60 * 1000;
+// keyed by channel:thread_ts:user
+const EPHEMERAL_TTL_MS = 60 * 1000;
+const ephemerals = new Cooldowns(EPHEMERAL_TTL_MS);
 
 export function registerSelfbotEvents(socket: WebSocket, app: App<"socket">) {
   socket.addEventListener("message", async (event) => {
@@ -69,10 +70,7 @@ export function registerSelfbotEvents(socket: WebSocket, app: App<"socket">) {
       if (messages.length === 0) return;
 
       const key = `${eventData.channel}:${eventData.thread_ts}:${eventData.user}`;
-      const existingTimestamp = ephemerals.get(key);
-      if (existingTimestamp !== undefined && existingTimestamp > Date.now()) {
-        return;
-      }
+      if (ephemerals.isActive(key)) return;
 
       try {
         await app.channel(eventData.channel).send({
@@ -92,7 +90,7 @@ export function registerSelfbotEvents(socket: WebSocket, app: App<"socket">) {
           thread_ts: eventData.thread_ts,
         });
 
-        ephemerals.set(key, Date.now() + EPHEMRAL_TTL_MS);
+        ephemerals.start(key);
       } catch (err) {
         logError(`failed to send ephemeral message`, err);
       }
