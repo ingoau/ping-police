@@ -15,6 +15,10 @@ export class Cooldowns {
     this.#expiries.set(key, now + this.ttlMs);
   }
 
+  clear(key: string) {
+    this.#expiries.delete(key);
+  }
+
   sweep(now = Date.now()) {
     for (const [key, expiry] of this.#expiries) {
       if (expiry <= now) this.#expiries.delete(key);

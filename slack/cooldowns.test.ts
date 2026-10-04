@@ -2,6 +2,14 @@ import { describe, expect, test } from "bun:test";
 import { Cooldowns } from "./cooldowns";
 
 describe("Cooldowns", () => {
+  test("clear ends a cooldown early", () => {
+    const cooldowns = new Cooldowns(1000);
+    cooldowns.start("a", 0);
+    cooldowns.clear("a");
+    expect(cooldowns.isActive("a", 1)).toBe(false);
+    expect(cooldowns.size).toBe(0);
+  });
+
   test("a key that was never started is not active", () => {
     const cooldowns = new Cooldowns(1000);
     expect(cooldowns.isActive("a", 0)).toBe(false);

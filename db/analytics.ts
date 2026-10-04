@@ -3,8 +3,8 @@ import { db } from "./client";
 import { channelSettings, warnings } from "./schema";
 
 // A reply only counts as ignoring a warning if it comes within this long of
-// the warning. Repeat warnings for the same thread, user and group within this
-// window are counted once.
+// the latest warning. Repeat warnings for the same thread, user and group
+// within this window are counted once, and push the window back.
 export const WARNING_WINDOW_MS = 30 * 60 * 1000;
 
 export interface WarningStats {
@@ -55,7 +55,7 @@ export async function recordWarnings(
   if (!(await isEnabled(warning.channelId))) return;
 
   const recent = await db
-    .select({ groupId: warnings.groupId })
+    .select({ id: warnings.id, groupId: warnings.groupId })
     .from(warnings)
     .where(
       and(
@@ -68,6 +68,18 @@ export async function recordWarnings(
       ),
     );
   const alreadyWarned = new Set(recent.map((row) => row.groupId));
+
+  if (recent.length > 0) {
+    await db
+      .update(warnings)
+      .set({ warnedAt: now })
+      .where(
+        inArray(
+          warnings.id,
+          recent.map((row) => row.id),
+        ),
+      );
+  }
 
   const rows = warning.groupIds
     .filter((groupId) => !alreadyWarned.has(groupId))

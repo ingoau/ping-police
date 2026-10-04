@@ -95,6 +95,39 @@ describe("handleTyping", () => {
     expect(send).toHaveBeenCalledTimes(2);
   });
 
+  test("doesn't send duplicates for typing events during a slow member count lookup", async () => {
+    await setUpThread();
+    globalThis.fetch = mock(async () => {
+      await Bun.sleep(50);
+      return Response.json({
+        ok: true,
+        usergroups: [{ id: "S1", handle: "staff", name: "Staff", user_count: 3 }],
+      });
+    }) as unknown as typeof fetch;
+    const send = mock(async () => {});
+
+    await Promise.all([
+      handleTyping(typing(), send, logError),
+      handleTyping(typing(), send, logError),
+    ]);
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(await analytics.getStats()).toEqual({ warnings: 1, ignored: 0 });
+  });
+
+  test("warns again after a failed send", async () => {
+    await setUpThread("custom");
+    const failing = mock(async () => {
+      throw new Error("nope");
+    });
+    const send = mock(async () => {});
+
+    await handleTyping(typing(), failing, logError);
+    await handleTyping(typing(), send, logError);
+
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
   test("doesn't warn outside threads, in unmentioned threads, or for disabled groups", async () => {
     await setUpThread();
     const send = mock(async () => {});

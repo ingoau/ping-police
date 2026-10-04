@@ -91,6 +91,9 @@ export async function handleTyping(
 
   const key = `${typing.channel}:${threadTs}:${typing.user}`;
   if (ephemerals.isActive(key)) return;
+  // Claim the cooldown before any async work, so typing events that arrive
+  // while the member count is being looked up don't send duplicate warnings
+  ephemerals.start(key);
 
   let groupIds: string[] = [];
   let messages: string[] = [];
@@ -99,7 +102,10 @@ export async function handleTyping(
       threadTs,
       typing.channel,
     );
-    if (mentionedGroups.length === 0) return;
+    if (mentionedGroups.length === 0) {
+      ephemerals.clear(key);
+      return;
+    }
 
     const appliedConfigs = (
       await configs.get(typing.channel, mentionedGroups)
@@ -121,7 +127,10 @@ export async function handleTyping(
     logError(`failed to fetch group configs`, err);
   }
 
-  if (messages.length === 0) return;
+  if (messages.length === 0) {
+    ephemerals.clear(key);
+    return;
+  }
 
   try {
     await sendWarning({
@@ -130,8 +139,8 @@ export async function handleTyping(
       threadTs,
       blocks: warningBlocks(messages),
     });
-    ephemerals.start(key);
   } catch (err) {
+    ephemerals.clear(key);
     logError(`failed to send ephemeral message`, err);
     return;
   }

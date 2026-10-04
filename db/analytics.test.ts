@@ -74,6 +74,13 @@ describe("markIgnored", () => {
     expect(await analytics.getStats()).toEqual({ warnings: 4, ignored: 2 });
   });
 
+  test("measures the window from the latest repeat warning", async () => {
+    await analytics.recordWarnings({ ...thread, groupIds: ["S1"] }, at(0));
+    await analytics.recordWarnings({ ...thread, groupIds: ["S1"] }, at(20));
+    await analytics.markIgnored(thread, at(40));
+    expect(await analytics.getStats()).toEqual({ warnings: 1, ignored: 1 });
+  });
+
   test("ignores replies long after the warning", async () => {
     await analytics.recordWarnings({ ...thread, groupIds: ["S1"] }, at(0));
     await analytics.markIgnored(thread, at(45));
