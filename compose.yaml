@@ -9,6 +9,7 @@ services:
       SLACK_SELFBOT_XOXD: ${SLACK_SELFBOT_XOXD:?required}
       PING_POLICE_USER_ID: ${PING_POLICE_USER_ID:?required}
       SELF_BOT_USER_ID: ${SELF_BOT_USER_ID:?required}
+      REPORT_USER_ID: ${REPORT_USER_ID:-}
       SQLITE_PATH: /data/sqlite.db
     volumes:
       - ping-police-data:/data

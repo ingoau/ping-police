@@ -15,4 +15,6 @@ export const env = {
   PING_POLICE_USER_ID: required("PING_POLICE_USER_ID"),
   SELF_BOT_USER_ID: required("SELF_BOT_USER_ID"),
   SQLITE_PATH: process.env.SQLITE_PATH || "sqlite.db", // optional, has a default
+  // optional; when set, the warning footer tells people to DM this user to report it
+  REPORT_USER_ID: process.env.REPORT_USER_ID || undefined,
 };
