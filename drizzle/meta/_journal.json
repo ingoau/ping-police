@@ -15,6 +15,13 @@
       "when": 1791096876933,
       "tag": "0001_delete_threads_without_mentions",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791097062321,
+      "tag": "0002_analytics",
+      "breakpoints": true
     }
   ]
 }

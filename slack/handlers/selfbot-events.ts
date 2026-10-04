@@ -1,6 +1,8 @@
-import type { Event } from "@/slack/types/events";
+import type { MessageEvent } from "@slack/web-api";
+import type { Event, TypingEvent } from "@/slack/types/events";
 import * as threads from "@/db/threads";
 import * as configs from "@/db/configs";
+import * as analytics from "@/db/analytics";
 import { blocks, context, mrkdwn, section, type App } from "slack.ts";
 import { env } from "@/env";
 import { Cooldowns } from "@/slack/cooldowns";
@@ -9,13 +11,154 @@ import { renderWarning, usesCount } from "@/slack/warning";
 
 const SUBTEAM_RE = /<!subteam\^([A-Z0-9]+)(?:\|[^>]*)?>/g;
 
+export function extractMentionedGroups(text: string) {
+  return [...text.matchAll(SUBTEAM_RE)].map((m) => m[1]!);
+}
+
 // keyed by channel:thread_ts:user
 const EPHEMERAL_TTL_MS = 60 * 1000;
 const ephemerals = new Cooldowns(EPHEMERAL_TTL_MS);
 
+export function clearCooldowns() {
+  ephemerals.sweep(Infinity);
+}
+
+type Logger = (msg: string, err?: unknown) => void;
+
+export async function handleMessage(message: MessageEvent, logError: Logger) {
+  if (
+    message.subtype /* Regular messages have no subtype */ &&
+    message.subtype !== "bot_message" &&
+    message.subtype !== "thread_broadcast"
+  ) {
+    return;
+  }
+
+  const threadTs = "thread_ts" in message ? message.thread_ts : undefined;
+
+  try {
+    await threads.store({
+      ts: threadTs || message.ts,
+      channelId: message.channel,
+      mentionedGroups: extractMentionedGroups(message.text ?? ""),
+    });
+  } catch (err) {
+    logError(`failed to store thread`, err);
+  }
+
+  // A reply in a thread notifies everyone subscribed to it, so if the author
+  // was warned about this thread they've ignored the warning
+  const userId = "user" in message ? message.user : undefined;
+  if (threadTs && threadTs !== message.ts && userId) {
+    try {
+      await analytics.markIgnored({
+        channelId: message.channel,
+        threadTs,
+        userId,
+      });
+    } catch (err) {
+      logError(`failed to record ignored warning`, err);
+    }
+  }
+}
+
+export function warningBlocks(messages: string[]) {
+  return blocks(
+    section(mrkdwn(messages.join("\n"))),
+    context(
+      mrkdwn(
+        "This message is provided by a manager of this channel" +
+          (env.REPORT_USER_ID
+            ? ` · DM <@${env.REPORT_USER_ID}> to report it`
+            : ""),
+      ),
+    ),
+  );
+}
+
+export async function handleTyping(
+  typing: TypingEvent,
+  sendWarning: (warning: {
+    channel: string;
+    user: string;
+    threadTs: string;
+    blocks: ReturnType<typeof warningBlocks>;
+  }) => Promise<unknown>,
+  logError: Logger,
+) {
+  const threadTs = typing.thread_ts;
+  if (!threadTs) return;
+
+  const key = `${typing.channel}:${threadTs}:${typing.user}`;
+  if (ephemerals.isActive(key)) return;
+
+  let groupIds: string[] = [];
+  let messages: string[] = [];
+  try {
+    const mentionedGroups = await threads.getMentionedGroups(
+      threadTs,
+      typing.channel,
+    );
+    if (mentionedGroups.length === 0) return;
+
+    const appliedConfigs = (
+      await configs.get(typing.channel, mentionedGroups)
+    ).filter((config) => config.enabled);
+
+    groupIds = appliedConfigs.map((config) => config.groupId);
+    messages = await Promise.all(
+      appliedConfigs.map(async (config) =>
+        renderWarning(
+          config.message,
+          config.groupId,
+          usesCount(config.message)
+            ? await getMemberCount(config.groupId)
+            : undefined,
+        ),
+      ),
+    );
+  } catch (err) {
+    logError(`failed to fetch group configs`, err);
+  }
+
+  if (messages.length === 0) return;
+
+  try {
+    await sendWarning({
+      channel: typing.channel,
+      user: typing.user,
+      threadTs,
+      blocks: warningBlocks(messages),
+    });
+    ephemerals.start(key);
+  } catch (err) {
+    logError(`failed to send ephemeral message`, err);
+    return;
+  }
+
+  try {
+    await analytics.recordWarnings({
+      channelId: typing.channel,
+      threadTs,
+      userId: typing.user,
+      groupIds,
+    });
+  } catch (err) {
+    logError(`failed to record warning`, err);
+  }
+}
+
 export function registerSelfbotEvents(socket: WebSocket, app: App<"socket">) {
+  const sendWarning: Parameters<typeof handleTyping>[1] = (warning) =>
+    app.channel(warning.channel).send({
+      ephemeral: true,
+      blocks: warning.blocks,
+      user: warning.user,
+      thread_ts: warning.threadTs,
+    });
+
   socket.addEventListener("message", async (event) => {
-    const logError = (msg: string, err?: unknown) =>
+    const logError: Logger = (msg, err) =>
       console.error(
         `[selfbot] ${msg}`,
         err ?? "",
@@ -31,80 +174,14 @@ export function registerSelfbotEvents(socket: WebSocket, app: App<"socket">) {
       return;
     }
 
-    if (
-      eventData.type === "message" &&
-      (!eventData.subtype /* Regular message */ ||
-        eventData.subtype === "bot_message" ||
-        eventData.subtype === "thread_broadcast")
-    ) {
-      try {
-        await threads.store({
-          ts: eventData.thread_ts || eventData.ts,
-          channelId: eventData.channel,
-          mentionedGroups: [...(eventData.text ?? "").matchAll(SUBTEAM_RE)].map(
-            (m) => m[1]!,
-          ),
-        });
-      } catch (err) {
-        logError(`failed to store thread`, err);
-      }
+    if (eventData.type === "message") {
+      await handleMessage(eventData, logError);
     }
 
     if (eventData.type === "user_typing") {
-      let messages: string[] = [];
-      try {
-        if (!eventData.thread_ts) return;
-        const mentionedGroups = await threads.getMentionedGroups(
-          eventData.thread_ts,
-          eventData.channel,
-        );
-        const appliedConfigs = (
-          await configs.get(eventData.channel, mentionedGroups)
-        ).filter((config) => config.enabled);
-
-        messages = await Promise.all(
-          appliedConfigs.map(async (config) =>
-            renderWarning(
-              config.message,
-              config.groupId,
-              usesCount(config.message)
-                ? await getMemberCount(config.groupId)
-                : undefined,
-            ),
-          ),
-        );
-      } catch (err) {
-        logError(`failed to fetch group configs`, err);
-      }
-
-      if (messages.length === 0) return;
-
-      const key = `${eventData.channel}:${eventData.thread_ts}:${eventData.user}`;
-      if (ephemerals.isActive(key)) return;
-
-      try {
-        await app.channel(eventData.channel).send({
-          ephemeral: true,
-          blocks: blocks(
-            section(mrkdwn(messages.join("\n"))),
-            context(
-              mrkdwn(
-                "This message is provided by a manager of this channel" +
-                  (env.REPORT_USER_ID
-                    ? ` · DM <@${env.REPORT_USER_ID}> to report it`
-                    : ""),
-              ),
-            ),
-          ),
-          user: eventData.user,
-          thread_ts: eventData.thread_ts,
-        });
-
-        ephemerals.start(key);
-      } catch (err) {
-        logError(`failed to send ephemeral message`, err);
-      }
+      await handleTyping(eventData, sendWarning, logError);
     }
+
     if (eventData.type === "ping") {
       try {
         socket.send(JSON.stringify({ type: "pong", reply_to: eventData.id }));

@@ -1,7 +1,6 @@
 import getChannelInfo from "../channel-info";
 import {
   manageGroupSettingsModal,
-  manageSettingsModal,
   notSetUp,
   privateChannelInitialSetup,
   publicChannelInitialSetup,
@@ -11,6 +10,8 @@ import addBots from "../add-bots";
 import * as configs from "@/db/configs";
 import * as selfbot from "@/slack/selfbot";
 import * as usergroups from "@/slack/usergroups";
+import * as analytics from "@/db/analytics";
+import * as views from "@/slack/views";
 
 async function handleEvent(
   name: string,
@@ -32,15 +33,12 @@ export function registerBotEvents(app: App<"socket">) {
   for (const command of ["/ping-police", "/dev-ping-police"] as const) {
     app.on(command, (slash) =>
       handleEvent(command, slash, async () => {
-        if (slash.text === "stats") {
-          const allConfigs = await configs.listAll();
-
-          const configuredChannels = [
-            ...new Set(allConfigs.map((config) => config.channelId)),
-          ];
-
+        if (slash.text.trim() === "stats") {
           await slash.respond.message({
-            text: `Configured in ${configuredChannels.length} channels, with ${allConfigs.length} rules overall`,
+            text: "Ping Police stats",
+            blocks: await views.stats(
+              slash.channel_id.startsWith("C") ? slash.channel_id : undefined,
+            ),
             ephemeral: true,
           });
           return;
@@ -64,12 +62,9 @@ export function registerBotEvents(app: App<"socket">) {
           return;
         }
 
-        const channelConfigs = await configs.list(slash.channel_id);
-
         await slash.respond.modal(
-          manageSettingsModal(
+          await views.settingsModal(
             slash.channel_id,
-            channelConfigs,
             channelInfo.managerIds.includes(slash.user_id),
           ),
         );
@@ -194,11 +189,7 @@ export function registerBotEvents(app: App<"socket">) {
       });
       await app.request("views.update", {
         view_id: action.event.view?.root_view_id,
-        view: manageSettingsModal(
-          channelId,
-          await configs.list(channelId),
-          true,
-        ),
+        view: await views.settingsModal(channelId, true),
       });
     }),
   );
@@ -221,11 +212,7 @@ export function registerBotEvents(app: App<"socket">) {
       await configs.deleteConfig(channelId, groupId);
       await app.request("views.update", {
         view_id: action.event.view?.root_view_id,
-        view: manageSettingsModal(
-          channelId,
-          await configs.list(channelId),
-          true,
-        ),
+        view: await views.settingsModal(channelId, true),
       });
       await app.request("views.update", {
         view_id: action.event.view?.id,
@@ -235,6 +222,22 @@ export function registerBotEvents(app: App<"socket">) {
           close: { type: "plain_text" as const, text: "Back" },
           blocks: blocks(richText(R.section("User group has been removed"))),
         },
+      });
+    }),
+  );
+  app.on("action:button.toggle_analytics", (action) =>
+    handleEvent("action:button.toggle_analytics", action, async () => {
+      const channelId = action.value;
+      if (!channelId) return;
+
+      const managerIds = await selfbot.getManagers(channelId);
+      if (!managerIds.includes(action.event.user.id)) return;
+
+      await analytics.toggle(channelId);
+
+      await app.request("views.update", {
+        view_id: action.event.view?.id,
+        view: await views.settingsModal(channelId, true),
       });
     }),
   );
@@ -291,12 +294,7 @@ export function registerBotEvents(app: App<"socket">) {
         if (!submission.view.root_view_id) return;
         await app.request("views.update", {
           view_id: submission.view.root_view_id,
-          view: manageSettingsModal(
-            channelId,
-            await configs.list(channelId),
-            true,
-            notice,
-          ),
+          view: await views.settingsModal(channelId, true, notice),
         });
       };
 
@@ -324,11 +322,7 @@ export function registerBotEvents(app: App<"socket">) {
       if (submission.view.root_view_id) {
         await app.request("views.update", {
           view_id: submission.view.root_view_id,
-          view: manageSettingsModal(
-            channelId,
-            await configs.list(channelId),
-            true,
-          ),
+          view: await views.settingsModal(channelId, true),
         });
       }
     }),
