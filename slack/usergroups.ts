@@ -70,6 +70,7 @@ function refresh() {
         cache = fresh;
         lastFailureAt = undefined;
       }
+      console.log(`[usergroups] loaded ${fresh.groups.length} user groups`);
       return fresh;
     })
     .catch((err) => {

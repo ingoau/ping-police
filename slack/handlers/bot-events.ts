@@ -259,10 +259,12 @@ export function registerBotEvents(app: App<"socket">) {
         console.error("[bot] failed to list user groups", err);
       }
 
+      const options = usergroups.groupOptions(groups, autocomplete.raw.value);
+      console.log(
+        `[bot] group search ${JSON.stringify(autocomplete.raw.value)}: ${options.length} options from ${groups.length} groups`,
+      );
       await autocomplete.respond(
-        ...usergroups
-          .groupOptions(groups, autocomplete.raw.value)
-          .map((o) => option(o.text, o.value)),
+        ...options.map((o) => option(o.text, o.value)),
       );
     }),
   );
