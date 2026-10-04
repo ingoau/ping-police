@@ -7,10 +7,12 @@ import {
   button,
   divider,
   input,
+  mrkdwn,
   plainTextInput,
   R,
   richText,
   section,
+  select,
 } from "slack.ts";
 
 const textCodeBlock = (text: string) => {
@@ -79,8 +81,10 @@ export const manageSettings = (
   channelId: string,
   configs: (typeof groupConfigs.$inferSelect)[],
   isManager: boolean,
+  notice?: string,
 ) =>
   blocks(
+    ...(notice ? [section(mrkdwn(`:warning: ${notice}`))] : []),
     richText(
       R.section(
         `${isManager ? "Manage" : "View"} user group settings for `,
@@ -113,8 +117,9 @@ export const manageSettingsModal = (
   channelId: string,
   configs: (typeof groupConfigs.$inferSelect)[],
   isManager: boolean,
+  notice?: string,
 ) => ({
-  blocks: manageSettings(channelId, configs, isManager),
+  blocks: manageSettings(channelId, configs, isManager, notice),
   title: { type: "plain_text" as const, text: "Ping Police" },
   type: "modal" as const,
   close: { type: "plain_text" as const, text: "Close" },
@@ -145,8 +150,18 @@ export const manageGroupSettings = (
     ...(config.groupId
       ? []
       : [
-          input("Group ID", plainTextInput().id("group_id"))
-            .id("group_id_input")
+          input(
+            "User group",
+            select()
+              .dynamic()
+              .id("group_select")
+              .minQueryLength(1)
+              .placeholder("Search by name or handle, or paste a group ID"),
+          )
+            .id("group_select_input")
+            .hint(
+              "Start typing to search. You can also paste a group ID (like S0123ABCD) or a group mention.",
+            )
             .optional(false),
         ]),
     input(

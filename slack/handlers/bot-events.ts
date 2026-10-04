@@ -6,10 +6,11 @@ import {
   privateChannelInitialSetup,
   publicChannelInitialSetup,
 } from "../blocks";
-import { blocks, R, richText, type App } from "slack.ts";
+import { blocks, option, R, richText, type App } from "slack.ts";
 import addBots from "../add-bots";
 import * as configs from "@/db/configs";
 import * as selfbot from "@/slack/selfbot";
+import * as usergroups from "@/slack/usergroups";
 
 async function handleEvent(
   name: string,
@@ -237,22 +238,82 @@ export function registerBotEvents(app: App<"socket">) {
       });
     }),
   );
+  app.on("autocomplete.group_select", (autocomplete) =>
+    handleEvent("autocomplete.group_select", autocomplete, async () => {
+      let groups: usergroups.UserGroup[] = [];
+      try {
+        groups = (await usergroups.getGroups()).groups;
+      } catch (err) {
+        // Still let people pick a pasted group ID if the list can't be loaded
+        console.error("[bot] failed to list user groups", err);
+      }
+
+      await autocomplete.respond(
+        ...usergroups
+          .groupOptions(groups, autocomplete.raw.value)
+          .map((o) => option(o.text, o.value)),
+      );
+    }),
+  );
   app.on("submit.edit_group_settings", (submission) =>
     handleEvent("submit.edit_group_settings", submission, async () => {
-      let [groupId, channelId] = submission.view.private_metadata.split(":");
+      const [existingGroupId, channelId] =
+        submission.view.private_metadata.split(":");
+      const isNewGroup = !existingGroupId;
 
       const values = submission.view.state.values as Record<
         string,
-        Record<string, { type: string; value?: string }>
+        Record<
+          string,
+          {
+            type: string;
+            value?: string | null;
+            selected_option?: { value?: string } | null;
+          }
+        >
       >;
 
-      groupId ||= values.group_id_input?.group_id?.value ?? "";
+      const selectedGroup =
+        values.group_select_input?.group_select?.selected_option?.value;
+      const groupId = existingGroupId || selectedGroup;
       const input = values.message_input?.message;
 
       if (!groupId || !channelId || input?.type !== "plain_text_input") return;
 
+      // Only channel managers can change settings
+      const managerIds = await selfbot.getManagers(channelId);
+      if (!managerIds.includes(submission.user.id)) return;
+
       // An empty message means the group uses the default message
       const message = input.value?.trim() ? input.value : null;
+
+      const showNotice = async (notice: string) => {
+        if (!submission.view.root_view_id) return;
+        await app.request("views.update", {
+          view_id: submission.view.root_view_id,
+          view: manageSettingsModal(
+            channelId,
+            await configs.list(channelId),
+            true,
+            notice,
+          ),
+        });
+      };
+
+      if (isNewGroup) {
+        if (!(await usergroups.resolveGroup(groupId))) {
+          await showNotice(
+            `Couldn't find a user group with the ID \`${groupId}\`, so it wasn't added.`,
+          );
+          return;
+        }
+        if ((await configs.get(channelId, [groupId])).length > 0) {
+          await showNotice(
+            `<!subteam^${groupId}> is already set up in this channel. Use its Edit button to change it.`,
+          );
+          return;
+        }
+      }
 
       await configs.updateOrCreate({
         channelId,
