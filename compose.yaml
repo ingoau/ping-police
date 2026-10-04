@@ -1,6 +1,6 @@
 services:
   ping-police:
-    image: registry.gitlab.com/ingowolf/ping-police:main
+    image: ghcr.io/ingoau/ping-police:main
     restart: unless-stopped
     environment:
       SLACK_TOKEN: ${SLACK_TOKEN:?required}
