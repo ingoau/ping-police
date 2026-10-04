@@ -4,6 +4,8 @@ import * as configs from "@/db/configs";
 import { blocks, context, mrkdwn, section, type App } from "slack.ts";
 import { env } from "@/env";
 import { Cooldowns } from "@/slack/cooldowns";
+import { getMemberCount } from "@/slack/usergroups";
+import { renderWarning, usesCount } from "@/slack/warning";
 
 const SUBTEAM_RE = /<!subteam\^([A-Z0-9]+)(?:\|[^>]*)?>/g;
 
@@ -60,8 +62,16 @@ export function registerSelfbotEvents(socket: WebSocket, app: App<"socket">) {
           await configs.get(eventData.channel, mentionedGroups)
         ).filter((config) => config.enabled);
 
-        messages = appliedConfigs.map(
-          (config) => `${config.message} (<!subteam^${config.groupId}>)`,
+        messages = await Promise.all(
+          appliedConfigs.map(async (config) =>
+            renderWarning(
+              config.message,
+              config.groupId,
+              usesCount(config.message)
+                ? await getMemberCount(config.groupId)
+                : undefined,
+            ),
+          ),
         );
       } catch (err) {
         logError(`failed to fetch group configs`, err);

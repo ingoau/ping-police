@@ -1,5 +1,6 @@
 import type { groupConfigs } from "@/db/schema";
 import { env } from "@/env";
+import { COUNT_PLACEHOLDER, DEFAULT_MESSAGE, hasCustomMessage } from "./warning";
 import {
   actions,
   blocks,
@@ -89,7 +90,11 @@ export const manageSettings = (
     ),
     ...configs.map((config) => {
       const block = section(
-        `<!subteam^${config.groupId}> - ${config.enabled ? "Enabled" : "Disabled"}\n Message: \`${config.message}\``,
+        `<!subteam^${config.groupId}> - ${config.enabled ? "Enabled" : "Disabled"}\n Message: ${
+          hasCustomMessage(config.message)
+            ? `\`${config.message}\``
+            : "_default_"
+        }`,
       );
       return isManager
         ? block.accessory(
@@ -149,10 +154,14 @@ export const manageGroupSettings = (
       plainTextInput()
         .multiline()
         .id("message")
+        .placeholder("Leave empty to use the default message")
         .default(config.message || ""),
     )
       .id("message_input")
-      .optional(false),
+      .hint(
+        `Use ${COUNT_PLACEHOLDER} to include how many people are in the group. Default message: ${DEFAULT_MESSAGE}`,
+      )
+      .optional(true),
     ...(config.groupId
       ? [
           actions(

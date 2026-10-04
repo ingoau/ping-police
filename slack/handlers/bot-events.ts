@@ -249,15 +249,10 @@ export function registerBotEvents(app: App<"socket">) {
       groupId ||= values.group_id_input?.group_id?.value ?? "";
       const input = values.message_input?.message;
 
-      if (
-        !groupId ||
-        !channelId ||
-        input?.type !== "plain_text_input" ||
-        input.value === undefined
-      )
-        return;
+      if (!groupId || !channelId || input?.type !== "plain_text_input") return;
 
-      const message = input.value;
+      // An empty message means the group uses the default message
+      const message = input.value?.trim() ? input.value : null;
 
       await configs.updateOrCreate({
         channelId,
