@@ -245,7 +245,15 @@ export function registerBotEvents(app: App<"socket">) {
     handleEvent("autocomplete.group_select", autocomplete, async () => {
       let groups: usergroups.UserGroup[] = [];
       try {
-        groups = (await usergroups.getGroups()).groups;
+        // Slack gives up on option requests after 3 seconds
+        groups = (
+          await Promise.race([
+            usergroups.getGroups(),
+            Bun.sleep(2_000).then(() => {
+              throw new Error("timed out loading user groups");
+            }),
+          ])
+        ).groups;
       } catch (err) {
         // Still let people pick a pasted group ID if the list can't be loaded
         console.error("[bot] failed to list user groups", err);
@@ -283,23 +291,41 @@ export function registerBotEvents(app: App<"socket">) {
 
       if (!groupId || !channelId || input?.type !== "plain_text_input") return;
 
+      // The modal has already closed, so problems are shown as a notice on the
+      // settings modal underneath it
+      const showNotice = async (notice: string, isManager = true) => {
+        if (!submission.view.root_view_id) return;
+        await app.request("views.update", {
+          view_id: submission.view.root_view_id,
+          view: await views.settingsModal(channelId, isManager, notice),
+        });
+      };
+
       // Only channel managers can change settings
       const managerIds = await selfbot.getManagers(channelId);
-      if (!managerIds.includes(submission.user.id)) return;
+      if (!managerIds.includes(submission.user.id)) {
+        await showNotice(
+          "Only channel managers can change these settings, so your changes weren't saved.",
+          false,
+        );
+        return;
+      }
 
       // An empty message means the group uses the default message
       const message = input.value?.trim() ? input.value : null;
 
-      const showNotice = async (notice: string) => {
-        if (!submission.view.root_view_id) return;
-        await app.request("views.update", {
-          view_id: submission.view.root_view_id,
-          view: await views.settingsModal(channelId, true, notice),
-        });
-      };
-
       if (isNewGroup) {
-        if (!(await usergroups.resolveGroup(groupId))) {
+        let group;
+        try {
+          group = await usergroups.resolveGroup(groupId);
+        } catch (err) {
+          console.error(`[bot] failed to look up user group ${groupId}`, err);
+          await showNotice(
+            "Couldn't check that user group right now, so it wasn't added. Please try again in a minute.",
+          );
+          return;
+        }
+        if (!group) {
           await showNotice(
             `Couldn't find a user group with the ID \`${groupId}\`, so it wasn't added.`,
           );

@@ -18,6 +18,9 @@ interface GroupCache {
 }
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
+// After a failed fetch with nothing cached, callers fail fast for this long
+// instead of all retrying the (rate limited) list call
+const FAILURE_BACKOFF_MS = 60 * 1000;
 // Slack rejects external_select responses with more than 100 options
 export const MAX_OPTIONS = 100;
 const MAX_OPTION_TEXT = 75;
@@ -26,6 +29,7 @@ let cache: GroupCache | undefined;
 let inflight: Promise<GroupCache> | undefined;
 // Bumped by clearCache so a fetch started before it doesn't repopulate the cache
 let generation = 0;
+let lastFailureAt: number | undefined;
 
 async function fetchGroups(): Promise<GroupCache> {
   const result = await api.selfbot("usergroups.list", {
@@ -62,8 +66,15 @@ function refresh() {
   const startedIn = generation;
   const request = fetchGroups()
     .then((fresh) => {
-      if (startedIn === generation) cache = fresh;
+      if (startedIn === generation) {
+        cache = fresh;
+        lastFailureAt = undefined;
+      }
       return fresh;
+    })
+    .catch((err) => {
+      if (startedIn === generation) lastFailureAt = Date.now();
+      throw err;
     })
     .finally(() => {
       if (inflight === request) inflight = undefined;
@@ -75,7 +86,15 @@ function refresh() {
 // Returns the cached groups, fetching them if there is no cache yet. A stale
 // cache is returned immediately while it is refreshed in the background.
 export async function getGroups(): Promise<GroupCache> {
-  if (!cache) return await refresh();
+  if (!cache) {
+    if (
+      lastFailureAt !== undefined &&
+      Date.now() - lastFailureAt < FAILURE_BACKOFF_MS
+    ) {
+      throw new Error("usergroups.list failed recently; not retrying yet");
+    }
+    return await refresh();
+  }
 
   if (Date.now() - cache.fetchedAt > CACHE_TTL_MS) {
     refresh().catch((err) =>
@@ -90,6 +109,7 @@ export function clearCache() {
   generation++;
   cache = undefined;
   inflight = undefined;
+  lastFailureAt = undefined;
 }
 
 const GROUP_ID_RE = /^S[A-Z0-9]{6,}$/;
@@ -144,8 +164,15 @@ export function searchGroups(
     .map(({ group }) => group);
 }
 
+// Truncates to at most max UTF-16 code units without splitting an emoji
 function truncate(text: string, max: number) {
-  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+  if (text.length <= max) return text;
+  let result = "";
+  for (const char of text) {
+    if (result.length + char.length > max - 1) break;
+    result += char;
+  }
+  return `${result}…`;
 }
 
 export function formatMemberCount(count: number) {

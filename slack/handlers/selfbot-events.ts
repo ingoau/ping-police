@@ -63,8 +63,9 @@ export async function handleMessage(message: MessageEvent, logError: Logger) {
 }
 
 export function warningBlocks(messages: string[]) {
+  // One section per group keeps each under Slack's 3000 character limit
   return blocks(
-    section(mrkdwn(messages.join("\n"))),
+    ...messages.map((message) => section(mrkdwn(message))),
     context(
       mrkdwn(
         "This message is provided by a manager of this channel" +

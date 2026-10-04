@@ -84,6 +84,13 @@ export const privateChannelInitialSetup = () =>
   );
 
 // Settings
+
+// Keeps settings and warning sections under Slack's 3000 character limit
+export const MAX_MESSAGE_LENGTH = 1000;
+const MAX_LISTED_MESSAGE_LENGTH = 300;
+
+const shorten = (text: string, max: number) =>
+  text.length > max ? `${text.slice(0, max - 1)}…` : text;
 export const formatWarningStats = ({ warnings, ignored }: WarningStats) =>
   `*${warnings.toLocaleString("en-US")}* ${warnings === 1 ? "warning" : "warnings"} shown · *${ignored.toLocaleString("en-US")}* replied anyway` +
   (warnings > 0 ? ` (${Math.round((ignored / warnings) * 100)}%)` : "");
@@ -122,7 +129,7 @@ export const manageSettings = ({
         `<!subteam^${config.groupId}> - ${config.enabled ? "Enabled" : "Disabled"}`,
         `Message: ${
           hasCustomMessage(config.message)
-            ? `\`${config.message}\``
+            ? `\`${shorten(config.message!, MAX_LISTED_MESSAGE_LENGTH)}\``
             : "_default_"
         }`,
         // Keep showing stats collected before analytics were turned off
@@ -287,6 +294,7 @@ export const manageGroupSettings = (
         .multiline()
         .id("message")
         .placeholder("Leave empty to use the default message")
+        .max(MAX_MESSAGE_LENGTH)
         .default(config.message || ""),
     )
       .id("message_input")

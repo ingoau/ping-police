@@ -186,6 +186,15 @@ describe("formatMemberCount", () => {
 });
 
 describe("groupOptionLabel", () => {
+  test("doesn't split emoji when truncating", () => {
+    const label = groupOptionLabel(
+      group("S1234567", "a".repeat(69) + "🎉🎉🎉🎉", "", undefined),
+    );
+    expect(label.length).toBeLessThanOrEqual(75);
+    expect(label.isWellFormed()).toBe(true);
+    expect(label.endsWith("…")).toBe(true);
+  });
+
   test("includes handle, name and member count", () => {
     expect(groupOptionLabel(group("S1234567", "eng", "Engineering", 42))).toBe(
       "@eng (Engineering) · 42 members",
@@ -416,11 +425,17 @@ describe("usergroups API lookups", () => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
-    test("throws when usergroups.list fails, and does not cache the failure", async () => {
+    test("throws when usergroups.list fails, backs off, then retries", async () => {
+      setSystemTime(new Date("2026-01-01T00:00:00Z"));
       mockSlack(() => ({ ok: false, error: "invalid_auth" }));
       await expect(getGroups()).rejects.toThrow("invalid_auth");
 
+      // Fails fast during the backoff without calling Slack again
       mockSlack(() => listResponse);
+      await expect(getGroups()).rejects.toThrow("failed recently");
+      expect(fetchMock).toHaveBeenCalledTimes(0);
+
+      setSystemTime(new Date("2026-01-01T00:01:01Z"));
       expect((await getGroups()).groups).toHaveLength(2);
     });
   });
