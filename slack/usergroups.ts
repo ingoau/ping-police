@@ -18,8 +18,8 @@ interface GroupCache {
 }
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
-// After a failed fetch with nothing cached, callers fail fast for this long
-// instead of all retrying the (rate limited) list call
+// After a failed fetch, wait this long before calling the (rate limited) list
+// call again. Callers get the stale cache meanwhile, or fail fast without one
 const FAILURE_BACKOFF_MS = 60 * 1000;
 // Slack rejects external_select responses with more than 100 options
 export const MAX_OPTIONS = 100;
@@ -86,17 +86,18 @@ function refresh() {
 // Returns the cached groups, fetching them if there is no cache yet. A stale
 // cache is returned immediately while it is refreshed in the background.
 export async function getGroups(): Promise<GroupCache> {
+  const backingOff =
+    lastFailureAt !== undefined &&
+    Date.now() - lastFailureAt < FAILURE_BACKOFF_MS;
+
   if (!cache) {
-    if (
-      lastFailureAt !== undefined &&
-      Date.now() - lastFailureAt < FAILURE_BACKOFF_MS
-    ) {
+    if (backingOff) {
       throw new Error("usergroups.list failed recently; not retrying yet");
     }
     return await refresh();
   }
 
-  if (Date.now() - cache.fetchedAt > CACHE_TTL_MS) {
+  if (Date.now() - cache.fetchedAt > CACHE_TTL_MS && !backingOff) {
     refresh().catch((err) =>
       console.error("[usergroups] background refresh failed", err),
     );

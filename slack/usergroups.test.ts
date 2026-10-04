@@ -425,6 +425,27 @@ describe("usergroups API lookups", () => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
+    test("doesn't retry a failed background refresh during the backoff", async () => {
+      setSystemTime(new Date("2026-01-01T00:00:00Z"));
+      mockSlack(() => listResponse);
+      await getGroups();
+
+      setSystemTime(new Date("2026-01-01T00:11:00Z"));
+      mockSlack(() => ({ ok: false, error: "ratelimited" }));
+      expect((await getGroups()).groups).toHaveLength(2);
+      await Bun.sleep(0);
+      await Bun.sleep(0);
+      expect(calls("usergroups.list")).toBe(1);
+
+      // Still stale, but backing off: served from cache without calling Slack
+      expect((await getGroups()).groups).toHaveLength(2);
+      expect(calls("usergroups.list")).toBe(1);
+
+      setSystemTime(new Date("2026-01-01T00:12:01Z"));
+      await getGroups();
+      expect(calls("usergroups.list")).toBe(2);
+    });
+
     test("throws when usergroups.list fails, backs off, then retries", async () => {
       setSystemTime(new Date("2026-01-01T00:00:00Z"));
       mockSlack(() => ({ ok: false, error: "invalid_auth" }));
