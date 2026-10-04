@@ -7,6 +7,10 @@ export async function store(message: {
   channelId: string;
   mentionedGroups: string[];
 }) {
+  // Only threads that mention a group are worth tracking. A thread row is
+  // created the first time any message in it (parent or reply) mentions one.
+  if (message.mentionedGroups.length === 0) return;
+
   let groups: string[] = [];
 
   const [existing] = await db
