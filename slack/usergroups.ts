@@ -24,6 +24,8 @@ const MAX_OPTION_TEXT = 75;
 
 let cache: GroupCache | undefined;
 let inflight: Promise<GroupCache> | undefined;
+// Bumped by clearCache so a fetch started before it doesn't repopulate the cache
+let generation = 0;
 
 async function fetchGroups(): Promise<GroupCache> {
   const result = await api.selfbot("usergroups.list", {
@@ -55,10 +57,19 @@ async function fetchGroups(): Promise<GroupCache> {
 }
 
 function refresh() {
-  inflight ??= fetchGroups()
-    .then((fresh) => (cache = fresh))
-    .finally(() => (inflight = undefined));
-  return inflight;
+  if (inflight) return inflight;
+
+  const startedIn = generation;
+  const request = fetchGroups()
+    .then((fresh) => {
+      if (startedIn === generation) cache = fresh;
+      return fresh;
+    })
+    .finally(() => {
+      if (inflight === request) inflight = undefined;
+    });
+  inflight = request;
+  return request;
 }
 
 // Returns the cached groups, fetching them if there is no cache yet. A stale
@@ -76,6 +87,7 @@ export async function getGroups(): Promise<GroupCache> {
 }
 
 export function clearCache() {
+  generation++;
   cache = undefined;
   inflight = undefined;
 }
@@ -90,7 +102,9 @@ export function parseGroupId(input: string) {
   const mention = trimmed.match(GROUP_MENTION_RE);
   if (mention) return mention[1]!;
   const upper = trimmed.toUpperCase();
-  return GROUP_ID_RE.test(upper) ? upper : undefined;
+  // Group IDs contain digits, which stops search words like "security" from
+  // being mistaken for an ID
+  return GROUP_ID_RE.test(upper) && /\d/.test(upper) ? upper : undefined;
 }
 
 function score(group: UserGroup, query: string) {
