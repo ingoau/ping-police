@@ -10,7 +10,7 @@ Usually, it's an accident, and this bot is built to prevent it. Basically, when 
 
 - Pick user groups from a searchable list, or paste a group ID
 - Custom warning messages per group, with a default message for groups that don't set one. Use `{count}` in a message to include how many people are in the group
-- Whole-channel warnings, for busy channels where lots of people get notified about every message: anyone who starts typing a new message in the channel (not in a thread) gets a warning. Turn it on with **Warn whole channel** in `/ping-police`; `{count}` is the number of people in the channel
+- Whole-channel warnings, for busy channels where lots of people get notified about every message: anyone who starts typing a new message in the channel (not in a thread) gets a warning. Add it with **Add rule** in `/ping-police` and pick **Channel** as the trigger; `{count}` is the number of people in the channel
 - Analytics (on by default, can be turned off per channel): how often people are warned, and how often they reply anyway
 - `/ping-police stats` shows stats everywhere, in the current channel, and per user group
 

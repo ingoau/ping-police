@@ -82,10 +82,10 @@ describe("settingsModal", () => {
     expect(modal).toContain("*2* warnings shown · *1* replied anyway (50%)");
     expect(modal).toContain("Message: _default_");
     expect(modal).toContain("Message: `hi`");
-    expect(modal).toContain('"action_id":"add_group"');
+    expect(modal).toContain('"action_id":"add_rule"');
+    expect(modal).toContain("Add rule");
     expect(modal).toContain('"action_id":"toggle_analytics"');
     expect(modal).toContain("Disable analytics");
-    expect(modal).toContain('"action_id":"add_channel_warning"');
   });
 
   test("lists the whole-channel warning first, once it's set up", async () => {
@@ -100,15 +100,13 @@ describe("settingsModal", () => {
     expect(modal.indexOf("Whole channel")).toBeLessThan(
       modal.indexOf("<!subteam^S1>"),
     );
-    expect(modal).not.toContain("add_channel_warning");
     expect(modal).toContain(`"value":"${CHANNEL_TARGET}:C1"`);
   });
 
   test("hides manager buttons from everyone else", async () => {
     const modal = text(await views.settingsModal("C1", false));
     expect(modal).not.toContain("toggle_analytics");
-    expect(modal).not.toContain("add_group");
-    expect(modal).not.toContain("add_channel_warning");
+    expect(modal).not.toContain("add_rule");
   });
 
   test("offers to re-enable analytics and shows a notice", async () => {
@@ -121,17 +119,17 @@ describe("settingsModal", () => {
 });
 
 describe("manageGroupSettingsModal", () => {
-  test("only offers enable and delete for a saved whole-channel warning", () => {
-    const fresh = text(
-      manageGroupSettingsModal({ channelId: "C1", groupId: CHANNEL_TARGET }),
-    );
-    expect(fresh).toContain("Warn anyone starting a new message in ");
-    expect(fresh).toContain("how many people are in the channel");
-    expect(fresh).not.toContain("toggle_enabled");
-    expect(fresh).not.toContain('"action_id":"delete"');
-    expect(fresh).not.toContain("group_select");
+  test("asks for a trigger when adding a rule", () => {
+    const modal = text(manageGroupSettingsModal({ channelId: "C1" }));
+    expect(modal).toContain('"text":"Trigger"');
+    expect(modal).toContain('"action_id":"trigger_select"');
+    expect(modal).toContain('"min_query_length":0');
+    expect(modal).toContain("Default for the channel:");
+    expect(modal).not.toContain("toggle_enabled");
+  });
 
-    const saved = text(
+  test("edits the channel rule without a trigger picker", () => {
+    const modal = text(
       manageGroupSettingsModal({
         channelId: "C1",
         groupId: CHANNEL_TARGET,
@@ -139,7 +137,10 @@ describe("manageGroupSettingsModal", () => {
         message: null,
       }),
     );
-    expect(saved).toContain("toggle_enabled");
-    expect(saved).toContain('"action_id":"delete"');
+    expect(modal).toContain("Manage the channel rule in ");
+    expect(modal).toContain("how many people are in the channel");
+    expect(modal).not.toContain("trigger_select");
+    expect(modal).toContain("toggle_enabled");
+    expect(modal).toContain('"action_id":"delete"');
   });
 });

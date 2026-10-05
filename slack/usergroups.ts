@@ -1,4 +1,5 @@
 import * as api from "./api";
+import { CHANNEL_TARGET } from "./warning";
 
 // User group lookups use the bot token. The selfbot's token is org-wide on
 // Enterprise Grid and usergroups.list returns no groups for it. The workspace
@@ -188,14 +189,16 @@ export function formatMemberCount(count: number) {
   return `${count.toLocaleString("en-US")} ${count === 1 ? "member" : "members"}`;
 }
 
-export function groupOptionLabel(group: UserGroup) {
+export function groupOptionLabel(group: UserGroup, max = MAX_OPTION_TEXT) {
   const parts = [`@${group.handle || group.id}`];
   if (group.name && group.name !== group.handle) parts.push(`(${group.name})`);
   if (group.userCount !== undefined) {
     parts.push(`· ${formatMemberCount(group.userCount)}`);
   }
-  return truncate(parts.join(" "), MAX_OPTION_TEXT);
+  return truncate(parts.join(" "), max);
 }
+
+const GROUP_PREFIX = "Group: ";
 
 // Options for the group picker. If the query looks like a group ID that isn't
 // in the list (e.g. a group the cache hasn't picked up yet), it is offered as
@@ -203,13 +206,31 @@ export function groupOptionLabel(group: UserGroup) {
 export function groupOptions(groups: UserGroup[], query: string) {
   const matches = searchGroups(groups, query);
   const options = matches.map((group) => ({
-    text: groupOptionLabel(group),
+    text:
+      GROUP_PREFIX +
+      groupOptionLabel(group, MAX_OPTION_TEXT - GROUP_PREFIX.length),
     value: group.id,
   }));
 
   const id = parseGroupId(query);
   if (id && !matches.some((group) => group.id === id)) {
-    options.unshift({ text: `Use group ID ${id}`, value: id });
+    options.unshift({ text: `${GROUP_PREFIX}use ID ${id}`, value: id });
+    options.splice(MAX_OPTIONS);
+  }
+
+  return options;
+}
+
+export const CHANNEL_OPTION = { text: "Channel", value: CHANNEL_TARGET };
+
+// Options for the trigger picker when adding a rule: the whole channel (when
+// the query could be the start of "channel"), then matching user groups.
+export function triggerOptions(groups: UserGroup[], query: string) {
+  const options = groupOptions(groups, query);
+
+  const normalized = query.trim().replace(/^#/, "").toLowerCase();
+  if ("channel".startsWith(normalized)) {
+    options.unshift(CHANNEL_OPTION);
     options.splice(MAX_OPTIONS);
   }
 

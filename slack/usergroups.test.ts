@@ -9,6 +9,7 @@ import {
   test,
 } from "bun:test";
 import {
+  CHANNEL_OPTION,
   MAX_OPTIONS,
   clearCache,
   formatMemberCount,
@@ -19,8 +20,10 @@ import {
   parseGroupId,
   resolveGroup,
   searchGroups,
+  triggerOptions,
   type UserGroup,
 } from "./usergroups";
+import { CHANNEL_TARGET } from "./warning";
 
 function group(
   id: string,
@@ -248,22 +251,22 @@ describe("groupOptions", () => {
 
   test("maps matches to labelled options", () => {
     expect(groupOptions(groups, "eng")).toEqual([
-      { text: "@eng (Engineering) · 10 members", value: "S0000001" },
+      { text: "Group: @eng (Engineering) · 10 members", value: "S0000001" },
     ]);
   });
 
   test("prepends a raw ID option when a pasted ID isn't in the list", () => {
     expect(groupOptions(groups, "S9999999")).toEqual([
-      { text: "Use group ID S9999999", value: "S9999999" },
+      { text: "Group: use ID S9999999", value: "S9999999" },
     ]);
     expect(groupOptions(groups, "<!subteam^S9999999|@new>")).toEqual([
-      { text: "Use group ID S9999999", value: "S9999999" },
+      { text: "Group: use ID S9999999", value: "S9999999" },
     ]);
   });
 
   test("does not duplicate an ID that is already in the list", () => {
     expect(groupOptions(groups, "S0000002")).toEqual([
-      { text: "@design (Design) · 1 member", value: "S0000002" },
+      { text: "Group: @design (Design) · 1 member", value: "S0000002" },
     ]);
     expect(groupOptions(groups, "s0000002")).toHaveLength(1);
   });
@@ -292,7 +295,7 @@ describe("groupOptions", () => {
     const withRaw = groupOptions(many, "S9999999");
     expect(withRaw.length).toBeLessThanOrEqual(MAX_OPTIONS);
     expect(withRaw[0]).toEqual({
-      text: "Use group ID S9999999",
+      text: "Group: use ID S9999999",
       value: "S9999999",
     });
 
@@ -303,6 +306,47 @@ describe("groupOptions", () => {
     const capped = groupOptions(many2, "S9999999");
     expect(capped).toHaveLength(MAX_OPTIONS);
     expect(capped[0]!.value).toBe("S9999999");
+  });
+});
+
+describe("triggerOptions", () => {
+  const groups = [
+    group("S0000001", "eng", "Engineering", 10),
+    group("S0000002", "chan-team", "Channel Team", 1),
+  ];
+
+  test("offers the channel first, then groups", () => {
+    expect(triggerOptions(groups, "")).toEqual([
+      CHANNEL_OPTION,
+      { text: "Group: @chan-team (Channel Team) · 1 member", value: "S0000002" },
+      { text: "Group: @eng (Engineering) · 10 members", value: "S0000001" },
+    ]);
+    expect(CHANNEL_OPTION).toEqual({ text: "Channel", value: CHANNEL_TARGET });
+  });
+
+  test("offers the channel while the query could be the start of it", () => {
+    expect(triggerOptions(groups, "Chan")[0]).toEqual(CHANNEL_OPTION);
+    expect(triggerOptions(groups, "#channel")[0]).toEqual(CHANNEL_OPTION);
+    expect(triggerOptions(groups, "eng")).toEqual([
+      { text: "Group: @eng (Engineering) · 10 members", value: "S0000001" },
+    ]);
+    expect(triggerOptions(groups, "channels")).toEqual([]);
+  });
+
+  test("keeps group labels within Slack's option length", () => {
+    const long = group("S0000003", "x".repeat(100), "", 5);
+    const [option] = groupOptions([long], "");
+    expect(option!.text.startsWith("Group: @xxx")).toBe(true);
+    expect(option!.text.length).toBeLessThanOrEqual(75);
+  });
+
+  test("never returns more than MAX_OPTIONS options", () => {
+    const many = Array.from({ length: 500 }, (_, i) =>
+      group(`S${String(i).padStart(7, "0")}`, `team-${i}`),
+    );
+    const options = triggerOptions(many, "");
+    expect(options).toHaveLength(MAX_OPTIONS);
+    expect(options[0]).toEqual(CHANNEL_OPTION);
   });
 });
 

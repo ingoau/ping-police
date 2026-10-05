@@ -6,6 +6,7 @@ import {
 } from "@/db/analytics";
 import { env } from "@/env";
 import {
+  CHANNEL_TARGET,
   COUNT_PLACEHOLDER,
   defaultMessage,
   hasCustomMessage,
@@ -125,15 +126,12 @@ export const manageSettings = ({
     (a, b) =>
       Number(isChannelTarget(b.groupId)) - Number(isChannelTarget(a.groupId)),
   );
-  const hasChannelWarning = sorted.some((config) =>
-    isChannelTarget(config.groupId),
-  );
 
   return blocks(
     ...(notice ? [section(mrkdwn(`:warning: ${notice}`))] : []),
     richText(
       R.section(
-        `${isManager ? "Manage" : "View"} user group settings for `,
+        `${isManager ? "Manage" : "View"} rules for `,
         R.channel(channelId),
         R.text(":"),
       ),
@@ -171,14 +169,7 @@ export const manageSettings = ({
     ...(isManager
       ? [
           actions(
-            button("Add group").value(channelId).id("add_group"),
-            ...(hasChannelWarning
-              ? []
-              : [
-                  button("Warn whole channel")
-                    .value(channelId)
-                    .id("add_channel_warning"),
-                ]),
+            button("Add rule").value(channelId).id("add_rule"),
             button(analyticsEnabled ? "Disable analytics" : "Enable analytics")
               .value(channelId)
               .id("toggle_analytics"),
@@ -283,14 +274,12 @@ export const manageGroupSettings = (
     Partial<typeof groupConfigs.$inferSelect>,
 ) => {
   const isChannel = isChannelTarget(config.groupId);
-  // Configs loaded from the database always have enabled set
-  const isSaved = config.enabled !== undefined;
 
   return blocks(
     richText(
       isChannel
         ? R.section(
-            R.text("Warn anyone starting a new message in ").bold(),
+            R.text("Manage the channel rule in ").bold(),
             R.channel(config.channelId).bold(),
             R.text(":").bold(),
           )
@@ -302,22 +291,22 @@ export const manageGroupSettings = (
               R.channel(config.channelId).bold(),
               R.text(":").bold(),
             )
-          : R.section("Add a user group in ", R.channel(config.channelId)),
+          : R.section("Add a rule in ", R.channel(config.channelId)),
     ),
     ...(config.groupId
       ? []
       : [
           input(
-            "User group",
+            "Trigger",
             select()
               .dynamic()
-              .id("group_select")
-              .minQueryLength(1)
-              .placeholder("Search by name or handle, or paste a group ID"),
+              .id("trigger_select")
+              .minQueryLength(0)
+              .placeholder("Channel, or search for a user group"),
           )
-            .id("group_select_input")
+            .id("trigger_select_input")
             .hint(
-              "Start typing to search. You can also paste a group ID (like S0123ABCD) or a group mention.",
+              "Channel warns anyone starting a new message in the channel. A group warns people replying in threads that mention it. Search groups by name or handle, or paste a group ID (like S0123ABCD) or a group mention.",
             )
             .optional(false),
         ]),
@@ -332,12 +321,14 @@ export const manageGroupSettings = (
     )
       .id("message_input")
       .hint(
-        isChannel
-          ? `Shown to anyone who starts typing a new message in the channel (not in threads). Use ${COUNT_PLACEHOLDER} to include how many people are in the channel. Default message: ${defaultMessage(config.groupId)}`
-          : `Use ${COUNT_PLACEHOLDER} to include how many people are in the group. Default message: ${defaultMessage(config.groupId)}`,
+        !config.groupId
+          ? `Use ${COUNT_PLACEHOLDER} to include how many people are in the group or channel. Default for groups: ${defaultMessage()} Default for the channel: ${defaultMessage(CHANNEL_TARGET)}`
+          : isChannel
+            ? `Shown to anyone who starts typing a new message in the channel (not in threads). Use ${COUNT_PLACEHOLDER} to include how many people are in the channel. Default message: ${defaultMessage(config.groupId)}`
+            : `Use ${COUNT_PLACEHOLDER} to include how many people are in the group. Default message: ${defaultMessage(config.groupId)}`,
       )
       .optional(true),
-    ...(isSaved
+    ...(config.groupId
       ? [
           actions(
             button(config.enabled ? "Disable" : "Enable")

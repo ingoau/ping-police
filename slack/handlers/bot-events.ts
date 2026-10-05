@@ -12,7 +12,7 @@ import * as selfbot from "@/slack/selfbot";
 import * as usergroups from "@/slack/usergroups";
 import * as analytics from "@/db/analytics";
 import * as views from "@/slack/views";
-import { CHANNEL_TARGET, isChannelTarget } from "@/slack/warning";
+import { isChannelTarget } from "@/slack/warning";
 
 async function handleEvent(
   name: string,
@@ -150,8 +150,8 @@ export function registerBotEvents(app: App<"socket">) {
     }),
   );
 
-  app.on("action:button.add_group", (action) =>
-    handleEvent("action:button.add_group", action, async () => {
+  app.on("action:button.add_rule", (action) =>
+    handleEvent("action:button.add_rule", action, async () => {
       if (!action.value) return;
 
       const managerIds = await selfbot.getManagers(action.value);
@@ -160,24 +160,6 @@ export function registerBotEvents(app: App<"socket">) {
       await app.request("views.push", {
         trigger_id: action.event.trigger_id,
         view: manageGroupSettingsModal({ channelId: action.value }),
-      });
-    }),
-  );
-
-  app.on("action:button.add_channel_warning", (action) =>
-    handleEvent("action:button.add_channel_warning", action, async () => {
-      if (!action.value) return;
-
-      const managerIds = await selfbot.getManagers(action.value);
-      if (!managerIds.includes(action.event.user.id)) return;
-
-      // Saving this modal creates the whole-channel warning
-      await app.request("views.push", {
-        trigger_id: action.event.trigger_id,
-        view: manageGroupSettingsModal({
-          channelId: action.value,
-          groupId: CHANNEL_TARGET,
-        }),
       });
     }),
   );
@@ -268,8 +250,8 @@ export function registerBotEvents(app: App<"socket">) {
       });
     }),
   );
-  app.on("autocomplete.group_select", (autocomplete) =>
-    handleEvent("autocomplete.group_select", autocomplete, async () => {
+  app.on("autocomplete.trigger_select", (autocomplete) =>
+    handleEvent("autocomplete.trigger_select", autocomplete, async () => {
       let groups: usergroups.UserGroup[] = [];
       try {
         // Slack gives up on option requests after 3 seconds
@@ -282,13 +264,14 @@ export function registerBotEvents(app: App<"socket">) {
           ])
         ).groups;
       } catch (err) {
-        // Still let people pick a pasted group ID if the list can't be loaded
+        // Still let people pick the channel or a pasted group ID if the list
+        // can't be loaded
         console.error("[bot] failed to list user groups", err);
       }
 
-      const options = usergroups.groupOptions(groups, autocomplete.raw.value);
+      const options = usergroups.triggerOptions(groups, autocomplete.raw.value);
       console.log(
-        `[bot] group search ${JSON.stringify(autocomplete.raw.value)}: ${options.length} options from ${groups.length} groups`,
+        `[bot] trigger search ${JSON.stringify(autocomplete.raw.value)}: ${options.length} options from ${groups.length} groups`,
       );
       await autocomplete.respond(
         ...options.map((o) => option(o.text, o.value)),
@@ -314,7 +297,7 @@ export function registerBotEvents(app: App<"socket">) {
       >;
 
       const selectedGroup =
-        values.group_select_input?.group_select?.selected_option?.value;
+        values.trigger_select_input?.trigger_select?.selected_option?.value;
       const groupId = existingGroupId || selectedGroup;
       const input = values.message_input?.message;
 
@@ -344,25 +327,28 @@ export function registerBotEvents(app: App<"socket">) {
       const message = input.value?.trim() ? input.value : null;
 
       if (isNewGroup) {
-        let group;
-        try {
-          group = await usergroups.resolveGroup(groupId);
-        } catch (err) {
-          console.error(`[bot] failed to look up user group ${groupId}`, err);
-          await showNotice(
-            "Couldn't check that user group right now, so it wasn't added. Please try again in a minute.",
-          );
-          return;
-        }
-        if (!group) {
-          await showNotice(
-            `Couldn't find a user group with the ID \`${groupId}\`, so it wasn't added.`,
-          );
-          return;
+        const isChannel = isChannelTarget(groupId);
+        if (!isChannel) {
+          let group;
+          try {
+            group = await usergroups.resolveGroup(groupId);
+          } catch (err) {
+            console.error(`[bot] failed to look up user group ${groupId}`, err);
+            await showNotice(
+              "Couldn't check that user group right now, so it wasn't added. Please try again in a minute.",
+            );
+            return;
+          }
+          if (!group) {
+            await showNotice(
+              `Couldn't find a user group with the ID \`${groupId}\`, so it wasn't added.`,
+            );
+            return;
+          }
         }
         if ((await configs.get(channelId, [groupId])).length > 0) {
           await showNotice(
-            `<!subteam^${groupId}> is already set up in this channel. Use its Edit button to change it.`,
+            `${isChannel ? "The channel rule" : `<!subteam^${groupId}>`} is already set up in this channel. Use its Edit button to change it.`,
           );
           return;
         }
