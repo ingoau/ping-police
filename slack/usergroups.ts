@@ -1,8 +1,9 @@
 import * as api from "./api";
 
-// User group lookups go through the selfbot so the bot token doesn't need the
-// usergroups:read scope. The workspace can have thousands of groups, so the
-// full list is cached in memory and searched locally.
+// User group lookups use the bot token. The selfbot's token is org-wide on
+// Enterprise Grid and usergroups.list returns no groups for it. The workspace
+// can have thousands of groups, so the full list is cached in memory and
+// searched locally.
 
 export interface UserGroup {
   id: string;
@@ -32,7 +33,7 @@ let generation = 0;
 let lastFailureAt: number | undefined;
 
 async function fetchGroups(): Promise<GroupCache> {
-  const result = await api.selfbot("usergroups.list", {
+  const result = await api.bot("usergroups.list", {
     include_count: "true",
     include_disabled: "false",
   });
@@ -52,6 +53,12 @@ async function fetchGroups(): Promise<GroupCache> {
         ]
       : [],
   );
+
+  if (groups.length === 0) {
+    console.warn(
+      "[usergroups] usergroups.list returned no groups; check the bot token's usergroups:read scope",
+    );
+  }
 
   return {
     groups,
@@ -221,9 +228,11 @@ export async function resolveGroup(
     console.error("[usergroups] failed to list groups", err);
   }
 
-  const result = await api.selfbot("usergroups.users.list", {
-    usergroup: groupId,
-  });
+  // The selfbot's org-wide token can see groups outside the bot's workspace
+  let result = await api.bot("usergroups.users.list", { usergroup: groupId });
+  if (!result.ok) {
+    result = await api.selfbot("usergroups.users.list", { usergroup: groupId });
+  }
   if (!result.ok) return undefined;
 
   return {

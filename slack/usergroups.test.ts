@@ -371,7 +371,7 @@ describe("usergroups API lookups", () => {
       expect(cache.byId.get("S0000002")?.handle).toBe("design");
       expect(body?.get("include_count")).toBe("true");
       expect(body?.get("include_disabled")).toBe("false");
-      expect(body?.get("token")).toBe("xoxc-test");
+      expect(body?.get("token")).toBe("xoxb-test");
     });
 
     test("defaults missing handle and name to empty strings", async () => {
@@ -489,6 +489,7 @@ describe("usergroups API lookups", () => {
         userCount: 4,
       });
       expect(usersBody?.get("usergroup")).toBe("S0000099");
+      expect(usersBody?.get("token")).toBe("xoxb-test");
       expect(calls("usergroups.list")).toBe(1);
       expect(calls("usergroups.users.list")).toBe(1);
     });
@@ -500,6 +501,17 @@ describe("usergroups API lookups", () => {
           : { ok: true, users: ["U1"] },
       );
       expect((await resolveGroup("S0000001"))?.userCount).toBe(1);
+    });
+
+    test("falls back to the selfbot when the bot can't see the group", async () => {
+      mockSlack((method, body) => {
+        if (method === "usergroups.list") return listResponse;
+        return body.get("token") === "xoxb-test"
+          ? { ok: false, error: "no_such_subteam" }
+          : { ok: true, users: ["U1", "U2"] };
+      });
+      expect((await resolveGroup("S0000099"))?.userCount).toBe(2);
+      expect(calls("usergroups.users.list")).toBe(2);
     });
 
     test("returns undefined when usergroups.users.list returns ok:false", async () => {
