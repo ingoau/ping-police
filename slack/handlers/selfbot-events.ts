@@ -7,7 +7,13 @@ import { blocks, context, mrkdwn, section, type App } from "slack.ts";
 import { env } from "@/env";
 import { Cooldowns } from "@/slack/cooldowns";
 import { getMemberCount } from "@/slack/usergroups";
-import { renderWarning, usesCount } from "@/slack/warning";
+import { getChannelMemberCount } from "@/slack/channel-members";
+import {
+  CHANNEL_TARGET,
+  isChannelTarget,
+  renderWarning,
+  usesCount,
+} from "@/slack/warning";
 
 const SUBTEAM_RE = /<!subteam\^([A-Z0-9]+)(?:\|[^>]*)?>/g;
 
@@ -18,9 +24,14 @@ export function extractMentionedGroups(text: string) {
 // keyed by channel:thread_ts:user
 const EPHEMERAL_TTL_MS = 60 * 1000;
 const ephemerals = new Cooldowns(EPHEMERAL_TTL_MS);
+// keyed by channel:user. People chatting in a busy channel would otherwise be
+// warned about nearly every message, so whole-channel warnings wait longer.
+const CHANNEL_EPHEMERAL_TTL_MS = 5 * 60 * 1000;
+const channelEphemerals = new Cooldowns(CHANNEL_EPHEMERAL_TTL_MS);
 
 export function clearCooldowns() {
   ephemerals.sweep(Infinity);
+  channelEphemerals.sweep(Infinity);
 }
 
 type Logger = (msg: string, err?: unknown) => void;
@@ -46,14 +57,24 @@ export async function handleMessage(message: MessageEvent, logError: Logger) {
     logError(`failed to store thread`, err);
   }
 
-  // A reply in a thread notifies everyone subscribed to it, so if the author
-  // was warned about this thread they've ignored the warning
   const userId = "user" in message ? message.user : undefined;
-  if (threadTs && threadTs !== message.ts && userId) {
+  if (!userId) return;
+
+  // A reply in a thread notifies everyone subscribed to it, and a new message
+  // in the channel (or a reply also sent to it) notifies everyone following
+  // the channel. If the author was warned about either, they've ignored it.
+  const postedIn: string[] = [];
+  const isReply = !!threadTs && threadTs !== message.ts;
+  if (isReply) postedIn.push(threadTs);
+  if (!isReply || message.subtype === "thread_broadcast") {
+    postedIn.push(analytics.TOP_LEVEL_TS);
+  }
+
+  for (const ts of postedIn) {
     try {
       await analytics.markIgnored({
         channelId: message.channel,
-        threadTs,
+        threadTs: ts,
         userId,
       });
     } catch (err) {
@@ -82,34 +103,38 @@ export async function handleTyping(
   sendWarning: (warning: {
     channel: string;
     user: string;
-    threadTs: string;
+    // Unset for whole-channel warnings
+    threadTs?: string;
     blocks: ReturnType<typeof warningBlocks>;
   }) => Promise<unknown>,
   logError: Logger,
 ) {
+  // Typing outside a thread starts a new message in the channel, which only
+  // the whole-channel warning applies to
   const threadTs = typing.thread_ts;
-  if (!threadTs) return;
+  const cooldowns = threadTs ? ephemerals : channelEphemerals;
 
-  const key = `${typing.channel}:${threadTs}:${typing.user}`;
-  if (ephemerals.isActive(key)) return;
+  const key = threadTs
+    ? `${typing.channel}:${threadTs}:${typing.user}`
+    : `${typing.channel}:${typing.user}`;
+  if (cooldowns.isActive(key)) return;
   // Claim the cooldown before any async work, so typing events that arrive
   // while the member count is being looked up don't send duplicate warnings
-  ephemerals.start(key);
+  cooldowns.start(key);
 
   let groupIds: string[] = [];
   let messages: string[] = [];
   try {
-    const mentionedGroups = await threads.getMentionedGroups(
-      threadTs,
-      typing.channel,
-    );
-    if (mentionedGroups.length === 0) {
-      ephemerals.clear(key);
+    const targets = threadTs
+      ? await threads.getMentionedGroups(threadTs, typing.channel)
+      : [CHANNEL_TARGET];
+    if (targets.length === 0) {
+      cooldowns.clear(key);
       return;
     }
 
     const appliedConfigs = (
-      await configs.get(typing.channel, mentionedGroups)
+      await configs.get(typing.channel, targets)
     ).filter((config) => config.enabled);
 
     groupIds = appliedConfigs.map((config) => config.groupId);
@@ -118,8 +143,10 @@ export async function handleTyping(
         renderWarning(
           config.message,
           config.groupId,
-          usesCount(config.message)
-            ? await getMemberCount(config.groupId)
+          usesCount(config.message, config.groupId)
+            ? await (isChannelTarget(config.groupId)
+                ? getChannelMemberCount(typing.channel)
+                : getMemberCount(config.groupId))
             : undefined,
         ),
       ),
@@ -129,7 +156,7 @@ export async function handleTyping(
   }
 
   if (messages.length === 0) {
-    ephemerals.clear(key);
+    cooldowns.clear(key);
     return;
   }
 
@@ -141,7 +168,7 @@ export async function handleTyping(
       blocks: warningBlocks(messages),
     });
   } catch (err) {
-    ephemerals.clear(key);
+    cooldowns.clear(key);
     logError(`failed to send ephemeral message`, err);
     return;
   }
@@ -149,7 +176,7 @@ export async function handleTyping(
   try {
     await analytics.recordWarnings({
       channelId: typing.channel,
-      threadTs,
+      threadTs: threadTs ?? analytics.TOP_LEVEL_TS,
       userId: typing.user,
       groupIds,
     });

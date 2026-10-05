@@ -5,7 +5,12 @@ import { channelSettings, groupConfigs, threads, warnings } from "@/db/schema";
 import * as analytics from "@/db/analytics";
 import * as configs from "@/db/configs";
 import { clearCache } from "@/slack/usergroups";
-import { DEFAULT_MESSAGE } from "@/slack/warning";
+import { clearCache as clearChannelCache } from "@/slack/channel-members";
+import {
+  CHANNEL_TARGET,
+  DEFAULT_CHANNEL_MESSAGE,
+  DEFAULT_MESSAGE,
+} from "@/slack/warning";
 import {
   clearCooldowns,
   extractMentionedGroups,
@@ -23,12 +28,17 @@ beforeEach(async () => {
   await db.delete(channelSettings);
   clearCooldowns();
   clearCache();
+  clearChannelCache();
   logError.mockClear();
-  globalThis.fetch = mock(async () =>
-    Response.json({
-      ok: true,
-      usergroups: [{ id: "S1", handle: "staff", name: "Staff", user_count: 1234 }],
-    }),
+  globalThis.fetch = mock(async (url: string) =>
+    String(url).endsWith("/conversations.info")
+      ? Response.json({ ok: true, channel: { id: "C1", num_members: 4321 } })
+      : Response.json({
+          ok: true,
+          usergroups: [
+            { id: "S1", handle: "staff", name: "Staff", user_count: 1234 },
+          ],
+        }),
   ) as unknown as typeof fetch;
 });
 
@@ -40,7 +50,9 @@ afterEach(() => {
 const message = (fields: Record<string, unknown>) =>
   ({ type: "message", channel: "C1", ...fields }) as unknown as MessageEvent;
 
-const typing = (fields: Partial<{ user: string; thread_ts: string }> = {}) => ({
+const typing = (
+  fields: Partial<{ user: string; thread_ts: string | undefined }> = {},
+) => ({
   type: "user_typing" as const,
   id: 1,
   channel: "C1",
@@ -150,6 +162,108 @@ describe("handleTyping", () => {
 
     expect(logError).toHaveBeenCalled();
     expect(await analytics.getStats()).toEqual({ warnings: 0, ignored: 0 });
+  });
+});
+
+describe("handleTyping with a whole-channel warning", () => {
+  const setUpChannel = (message: string | null = null) =>
+    configs.updateOrCreate({ channelId: "C1", groupId: CHANNEL_TARGET, message });
+  const topLevel = (fields: Partial<{ user: string }> = {}) =>
+    typing({ thread_ts: undefined, ...fields });
+
+  test("warns about new messages with the channel member count", async () => {
+    await setUpChannel();
+    const send = mock(async () => {});
+
+    await handleTyping(topLevel(), send, logError);
+
+    expect(send).toHaveBeenCalledTimes(1);
+    const warning = (send.mock.calls[0] as unknown as [any])[0];
+    expect(warning).toMatchObject({ channel: "C1", user: "U1" });
+    expect(warning.threadTs).toBeUndefined();
+    const sent = JSON.stringify(warning.blocks);
+    expect(sent).toContain(DEFAULT_CHANNEL_MESSAGE.replace("{count}", "4,321"));
+    expect(sent).not.toContain("subteam");
+    expect(await analytics.getGroupStats("C1")).toEqual([
+      { groupId: CHANNEL_TARGET, warnings: 1, ignored: 0 },
+    ]);
+    expect(logError).not.toHaveBeenCalled();
+  });
+
+  test("doesn't warn in threads, or once disabled", async () => {
+    await setUpChannel("custom");
+    const send = mock(async () => {});
+
+    await handleTyping(typing(), send, logError);
+    expect(send).not.toHaveBeenCalled();
+
+    await configs.toggle("C1", CHANNEL_TARGET);
+    await handleTyping(topLevel(), send, logError);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  test("warns each person once during the cooldown", async () => {
+    await setUpChannel("custom");
+    const send = mock(async () => {});
+
+    await handleTyping(topLevel(), send, logError);
+    await handleTyping(topLevel(), send, logError);
+    await handleTyping(topLevel({ user: "U2" }), send, logError);
+
+    expect(send).toHaveBeenCalledTimes(2);
+  });
+
+  test("still warns when the member count can't be looked up", async () => {
+    await setUpChannel();
+    globalThis.fetch = mock(async () =>
+      Response.json({ ok: false, error: "ratelimited" }),
+    ) as unknown as typeof fetch;
+    const send = mock(async () => {});
+    const consoleError = console.error;
+    console.error = () => {};
+
+    try {
+      await handleTyping(topLevel(), send, logError);
+    } finally {
+      console.error = consoleError;
+    }
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(send.mock.calls[0])).toContain(
+      "this channel has lots of members",
+    );
+  });
+
+  test("counts a new message in the channel as posting anyway", async () => {
+    await setUpChannel("custom");
+    await handleTyping(topLevel(), async () => {}, logError);
+
+    // A thread reply doesn't notify the channel
+    await handleMessage(
+      message({ ts: "2.1", thread_ts: "2.0", user: "U1", text: "hi" }),
+      logError,
+    );
+    expect(await analytics.getStats()).toEqual({ warnings: 1, ignored: 0 });
+
+    await handleMessage(message({ ts: "3.0", user: "U1", text: "hi" }), logError);
+    expect(await analytics.getStats()).toEqual({ warnings: 1, ignored: 1 });
+  });
+
+  test("counts a reply also sent to the channel as posting anyway", async () => {
+    await setUpChannel("custom");
+    await handleTyping(topLevel(), async () => {}, logError);
+
+    await handleMessage(
+      message({
+        ts: "2.1",
+        thread_ts: "2.0",
+        subtype: "thread_broadcast",
+        user: "U1",
+        text: "hi",
+      }),
+      logError,
+    );
+    expect(await analytics.getStats()).toEqual({ warnings: 1, ignored: 1 });
   });
 });
 

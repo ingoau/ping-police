@@ -1,10 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import {
+  CHANNEL_TARGET,
   COUNT_PLACEHOLDER,
+  DEFAULT_CHANNEL_MESSAGE,
   DEFAULT_MESSAGE,
   hasCustomMessage,
   renderWarning,
   resolveMessage,
+  targetLabel,
   usesCount,
 } from "./warning";
 
@@ -78,5 +81,32 @@ describe("renderWarning", () => {
     expect(renderWarning("{count} people", "S1", 0)).toBe(
       "0 people (<!subteam^S1>)",
     );
+  });
+});
+
+describe("whole-channel warnings", () => {
+  test("use the channel default message without a group mention", () => {
+    expect(resolveMessage(null, CHANNEL_TARGET)).toBe(DEFAULT_CHANNEL_MESSAGE);
+    expect(usesCount(null, CHANNEL_TARGET)).toBe(true);
+    expect(renderWarning(null, CHANNEL_TARGET, 2500)).toBe(
+      DEFAULT_CHANNEL_MESSAGE.replace(COUNT_PLACEHOLDER, "2,500"),
+    );
+  });
+
+  test("keep a custom message as is", () => {
+    expect(renderWarning("Use threads!", CHANNEL_TARGET, 5)).toBe(
+      "Use threads!",
+    );
+  });
+
+  test("read naturally when the member count is unknown", () => {
+    expect(renderWarning(null, CHANNEL_TARGET)).toContain(
+      "this channel has lots of members",
+    );
+  });
+
+  test("are labelled as the whole channel", () => {
+    expect(targetLabel(CHANNEL_TARGET)).toBe("Whole channel");
+    expect(targetLabel("S1")).toBe("<!subteam^S1>");
   });
 });

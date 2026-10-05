@@ -12,6 +12,7 @@ import * as selfbot from "@/slack/selfbot";
 import * as usergroups from "@/slack/usergroups";
 import * as analytics from "@/db/analytics";
 import * as views from "@/slack/views";
+import { CHANNEL_TARGET, isChannelTarget } from "@/slack/warning";
 
 async function handleEvent(
   name: string,
@@ -163,6 +164,24 @@ export function registerBotEvents(app: App<"socket">) {
     }),
   );
 
+  app.on("action:button.add_channel_warning", (action) =>
+    handleEvent("action:button.add_channel_warning", action, async () => {
+      if (!action.value) return;
+
+      const managerIds = await selfbot.getManagers(action.value);
+      if (!managerIds.includes(action.event.user.id)) return;
+
+      // Saving this modal creates the whole-channel warning
+      await app.request("views.push", {
+        trigger_id: action.event.trigger_id,
+        view: manageGroupSettingsModal({
+          channelId: action.value,
+          groupId: CHANNEL_TARGET,
+        }),
+      });
+    }),
+  );
+
   app.on("action:button.toggle_enabled", (action) =>
     handleEvent("action:button.toggle_enabled", action, async () => {
       if (!action.value) return;
@@ -220,7 +239,15 @@ export function registerBotEvents(app: App<"socket">) {
           title: { type: "plain_text" as const, text: "Ping Police" },
           type: "modal" as const,
           close: { type: "plain_text" as const, text: "Back" },
-          blocks: blocks(richText(R.section("User group has been removed"))),
+          blocks: blocks(
+            richText(
+              R.section(
+                isChannelTarget(groupId)
+                  ? "Channel warning has been removed"
+                  : "User group has been removed",
+              ),
+            ),
+          ),
         },
       });
     }),

@@ -7,6 +7,10 @@ import { channelSettings, warnings } from "./schema";
 // within this window are counted once, and push the window back.
 export const WARNING_WINDOW_MS = 30 * 60 * 1000;
 
+// Whole-channel warnings aren't in a thread, so they're recorded with this
+// in place of a thread ts
+export const TOP_LEVEL_TS = "";
+
 export interface WarningStats {
   warnings: number;
   ignored: number;
