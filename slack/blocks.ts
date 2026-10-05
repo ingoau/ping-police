@@ -52,7 +52,7 @@ export const notSetUp = (channelId: string) =>
   blocks(
     richText(
       R.section(
-        "Ping Police is a bot to prevent people from pinging large groups of people. It does this by showing a warning as the user starts typing in a thread that will ping specified groups.",
+        "Ping Police is a bot to prevent people from pinging large groups of people. It does this by showing a warning as the user starts typing in a thread that will ping specified groups, or, if turned on, as they start typing a new message in a busy channel.",
       ),
     ),
     divider(),
@@ -162,7 +162,7 @@ export const manageSettings = ({
     context(
       mrkdwn(
         analyticsEnabled
-          ? "Analytics are on: Ping Police counts how often people are warned, and how often they reply anyway."
+          ? "Analytics are on: Ping Police counts how often people are warned, and how often they post anyway."
           : "Analytics are off for this channel.",
       ),
     ),
@@ -246,10 +246,10 @@ export const statsMessage = ({
           section(
             mrkdwn(
               [
-                `*By group in <#${channel.channelId}>*`,
+                `*By rule in <#${channel.channelId}>*`,
                 ...(groupLines.length > 0
                   ? groupLines
-                  : ["_No user groups set up or warned about here yet._"]),
+                  : ["_No rules set up or warned about here yet._"]),
               ].join("\n"),
             ),
           ),
@@ -257,7 +257,7 @@ export const statsMessage = ({
       : []),
     context(
       mrkdwn(
-        `“Replied anyway” counts warnings where the person replied in the thread within ${WARNING_WINDOW_MS / 60_000} minutes.`,
+        `“Replied anyway” counts warnings where the person replied in the thread (or, for whole-channel rules, posted in the channel) within ${WARNING_WINDOW_MS / 60_000} minutes.`,
       ),
     ),
   );
@@ -279,7 +279,7 @@ export const manageGroupSettings = (
     richText(
       isChannel
         ? R.section(
-            R.text("Manage the channel rule in ").bold(),
+            R.text("Manage the whole-channel rule in ").bold(),
             R.channel(config.channelId).bold(),
             R.text(":").bold(),
           )

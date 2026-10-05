@@ -327,6 +327,7 @@ describe("triggerOptions", () => {
   test("offers the channel while the query could be the start of it", () => {
     expect(triggerOptions(groups, "Chan")[0]).toEqual(CHANNEL_OPTION);
     expect(triggerOptions(groups, "#channel")[0]).toEqual(CHANNEL_OPTION);
+    expect(triggerOptions(groups, "@channel")[0]).toEqual(CHANNEL_OPTION);
     expect(triggerOptions(groups, "eng")).toEqual([
       { text: "Group: @eng (Engineering) · 10 members", value: "S0000001" },
     ]);

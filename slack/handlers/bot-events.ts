@@ -225,7 +225,7 @@ export function registerBotEvents(app: App<"socket">) {
             richText(
               R.section(
                 isChannelTarget(groupId)
-                  ? "Channel warning has been removed"
+                  ? "Whole-channel rule has been removed"
                   : "User group has been removed",
               ),
             ),
@@ -301,7 +301,7 @@ export function registerBotEvents(app: App<"socket">) {
       const groupId = existingGroupId || selectedGroup;
       const input = values.message_input?.message;
 
-      if (!groupId || !channelId || input?.type !== "plain_text_input") return;
+      if (!channelId) return;
 
       // The modal has already closed, so problems are shown as a notice on the
       // settings modal underneath it
@@ -312,6 +312,14 @@ export function registerBotEvents(app: App<"socket">) {
           view: await views.settingsModal(channelId, isManager, notice),
         });
       };
+
+      // e.g. a modal opened before an update that renamed its inputs
+      if (!groupId || input?.type !== "plain_text_input") {
+        await showNotice(
+          "Something went wrong reading that form, so nothing was saved. Please try again.",
+        );
+        return;
+      }
 
       // Only channel managers can change settings
       const managerIds = await selfbot.getManagers(channelId);
@@ -348,7 +356,7 @@ export function registerBotEvents(app: App<"socket">) {
         }
         if ((await configs.get(channelId, [groupId])).length > 0) {
           await showNotice(
-            `${isChannel ? "The channel rule" : `<!subteam^${groupId}>`} is already set up in this channel. Use its Edit button to change it.`,
+            `${isChannel ? "The whole-channel rule" : `<!subteam^${groupId}>`} is already set up in this channel. Use its Edit button to change it.`,
           );
           return;
         }

@@ -67,7 +67,14 @@ export async function handleMessage(message: MessageEvent, logError: Logger) {
   const isReply = !!threadTs && threadTs !== message.ts;
   if (isReply) postedIn.push(threadTs);
   if (!isReply || message.subtype === "thread_broadcast") {
-    postedIn.push(analytics.TOP_LEVEL_TS);
+    try {
+      // Only channels with a whole-channel rule can have top-level warnings
+      if ((await configs.getChannelRule(message.channel)) !== undefined) {
+        postedIn.push(analytics.TOP_LEVEL_TS);
+      }
+    } catch (err) {
+      logError(`failed to check for a channel rule`, err);
+    }
   }
 
   for (const ts of postedIn) {
@@ -112,6 +119,14 @@ export async function handleTyping(
   // Typing outside a thread starts a new message in the channel, which only
   // the whole-channel warning applies to
   const threadTs = typing.thread_ts;
+  if (!threadTs) {
+    try {
+      if (!(await configs.getChannelRule(typing.channel))) return;
+    } catch (err) {
+      logError(`failed to check for a channel rule`, err);
+      return;
+    }
+  }
   const cooldowns = threadTs ? ephemerals : channelEphemerals;
 
   const key = threadTs

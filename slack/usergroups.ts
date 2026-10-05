@@ -228,7 +228,7 @@ export const CHANNEL_OPTION = { text: "Channel", value: CHANNEL_TARGET };
 export function triggerOptions(groups: UserGroup[], query: string) {
   const options = groupOptions(groups, query);
 
-  const normalized = query.trim().replace(/^#/, "").toLowerCase();
+  const normalized = query.trim().replace(/^[#@]/, "").toLowerCase();
   if ("channel".startsWith(normalized)) {
     options.unshift(CHANNEL_OPTION);
     options.splice(MAX_OPTIONS);

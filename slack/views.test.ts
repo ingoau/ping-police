@@ -137,7 +137,7 @@ describe("manageGroupSettingsModal", () => {
         message: null,
       }),
     );
-    expect(modal).toContain("Manage the channel rule in ");
+    expect(modal).toContain("Manage the whole-channel rule in ");
     expect(modal).toContain("how many people are in the channel");
     expect(modal).not.toContain("trigger_select");
     expect(modal).toContain("toggle_enabled");

@@ -26,6 +26,7 @@ beforeEach(async () => {
   await db.delete(groupConfigs);
   await db.delete(warnings);
   await db.delete(channelSettings);
+  configs.clearChannelRuleCache();
   clearCooldowns();
   clearCache();
   clearChannelCache();
@@ -247,6 +248,34 @@ describe("handleTyping with a whole-channel warning", () => {
 
     await handleMessage(message({ ts: "3.0", user: "U1", text: "hi" }), logError);
     expect(await analytics.getStats()).toEqual({ warnings: 1, ignored: 1 });
+  });
+
+  test("keeps thread and channel warnings apart", async () => {
+    await setUpChannel("custom");
+    await handleMessage(message({ ts: "1.0", text: "<!subteam^S1>" }), logError);
+    await configs.updateOrCreate({ channelId: "C1", groupId: "S1", message: "x" });
+    await handleTyping(typing(), async () => {}, logError);
+    await handleTyping(topLevel(), async () => {}, logError);
+
+    await handleMessage(message({ ts: "3.0", user: "U1", text: "hi" }), logError);
+    expect(await analytics.getGroupStats("C1")).toEqual([
+      { groupId: "S1", warnings: 1, ignored: 0 },
+      { groupId: CHANNEL_TARGET, warnings: 1, ignored: 1 },
+    ]);
+  });
+
+  test("picks up a channel rule added after the rules were loaded", async () => {
+    const send = mock(async () => {});
+    await handleTyping(topLevel(), send, logError);
+    expect(send).not.toHaveBeenCalled();
+
+    await setUpChannel("custom");
+    await handleTyping(topLevel(), send, logError);
+    expect(send).toHaveBeenCalledTimes(1);
+
+    await configs.deleteConfig("C1", CHANNEL_TARGET);
+    await handleTyping(topLevel({ user: "U2" }), send, logError);
+    expect(send).toHaveBeenCalledTimes(1);
   });
 
   test("counts a reply also sent to the channel as posting anyway", async () => {
